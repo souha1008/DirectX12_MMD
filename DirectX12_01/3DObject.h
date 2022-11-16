@@ -86,7 +86,6 @@ typedef struct
     XMMATRIX view;
     XMMATRIX proj;
     XMFLOAT3 eye;   // 視線座標
-    //XMFLOAT4X4 viewproj;   // ビューとプロジェクションの合成行列
 }SCENEMATRIX;
 
 typedef struct
