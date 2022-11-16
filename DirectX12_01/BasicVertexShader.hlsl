@@ -8,8 +8,8 @@ OUTPUT BasicVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOO
 	output.svpos = mul(mul(proj, view), pos);
 	output.pos = mul(view, pos);
 
-	normal.w = 0;
-	output.normal = mul(world, normal);
+	normal.w = 0;	// 平行移動成分を無効にする
+	output.normal = mul(world, normal);	// 法線にもワールド変換を行う
 	output.vnormal = mul(view, output.normal);
 
 	output.uv = uv;

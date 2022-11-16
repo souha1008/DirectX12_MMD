@@ -151,12 +151,12 @@ HRESULT Object3D::SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned
 
 HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 {
-	XMMATRIX WorldMatrix = XMMatrixRotationY(XM_PIDIV4);
+	XMMATRIX WorldMatrix = XMMatrixIdentity();
 
 	// 視線
-	XMFLOAT3 eye(0, 12, -25);
+	XMFLOAT3 eye(0, 15, -15);
 	// 注視点
-	XMFLOAT3 target(0, 12, 0);
+	XMFLOAT3 target(0, 15, 0);
 	// 上ベクトル
 	XMFLOAT3 v_up(0, 1, 0);
 
@@ -218,7 +218,7 @@ HRESULT Object3D::CreateBasicDescriptorHeap(MODEL_DX12* Model)
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;	// シェーダーから見える
 	dhd.NodeMask = 0;	// マスク0
-	dhd.NumDescriptors = 2;	// ビューは今のところ１つだけ
+	dhd.NumDescriptors = 1;	// ビューは今のところ１つだけ
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&Model->basicDescHeap));
