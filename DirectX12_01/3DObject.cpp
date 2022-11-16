@@ -413,6 +413,7 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 	Model->material.resize(materialNum);
 	Model->TextureResource.resize(materialNum); // マテリアルの数分テクスチャのリソース分確保
 	Model->sphResource.resize(materialNum);	// 同様
+	Model->spaResource.resize(materialNum);
 
 	// コピー
 	for (int i = 0; i < pmdMaterials.size(); ++i)
@@ -435,22 +436,67 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 
 		// モデルとテクスチャパスからアプリケーションからのテクスチャパスを得る
 		std::string texFileName = pmdMaterials[i].texFilePath;
+		std::string sphFileName = "";
+		std::string spaFileName = "";
 		
 		if(std::count(texFileName.begin(), texFileName.end(), '*') > 0)
 		{ 
 			auto namepair = SplitFileName(texFileName);
-			if (GetExtension(namepair.first) == "sph" || GetExtension(namepair.first) == "spa")
+			if (GetExtension(namepair.first) == "sph")
 			{
 				texFileName = namepair.second;
+				sphFileName = namepair.first;
+			}
+			else if (GetExtension(namepair.first) == "spa")
+			{
+				texFileName = namepair.second;
+				spaFileName = namepair.first;
 			}
 			else
 			{
 				texFileName = namepair.first;
+				if (GetExtension(namepair.second) == "sph")
+				{
+					sphFileName = namepair.second;
+				}
+				else if (GetExtension(namepair.second) == "spa")
+				{
+					spaFileName = namepair.second;
+				}
 			}
 		}
-		auto texFilePath = GetTexturePathFromModelandTexPath(ModelPath, texFileName.c_str());
-		Model->TextureResource[i] = LoadTextureFromFile(Model, texFilePath);
-
+		else
+		{
+			if (GetExtension(pmdMaterials[i].texFilePath) == "sph")
+			{
+				sphFileName = pmdMaterials[i].texFilePath;
+				texFileName = "";
+			}
+			else if (GetExtension(pmdMaterials[i].texFilePath) == "spa")
+			{
+				spaFileName = pmdMaterials[i].texFilePath;
+				texFileName = "";
+			}
+			else
+			{
+				texFileName = pmdMaterials[i].texFilePath;
+			}
+		}
+		if (texFileName != "")
+		{
+			auto texFilePath = GetTexturePathFromModelandTexPath(ModelPath, texFileName.c_str());
+			Model->TextureResource[i] = LoadTextureFromFile(Model, texFilePath);
+		}
+		if (sphFileName != "")
+		{
+			auto sphFilePath = GetTexturePathFromModelandTexPath(ModelPath, sphFileName.c_str());
+			Model->sphResource[i] = LoadTextureFromFile(Model, sphFilePath);
+		}
+		if (spaFileName != "")
+		{
+			auto spaFilePath = GetTexturePathFromModelandTexPath(ModelPath, spaFileName.c_str());
+			Model->spaResource[i] = LoadTextureFromFile(Model, spaFilePath);
+		}
 
 	}
 
@@ -503,7 +549,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	D3D12_DESCRIPTOR_HEAP_DESC mat_dhd = {};
 	mat_dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	mat_dhd.NodeMask = 0;
-	mat_dhd.NumDescriptors = Model->sub.materialNum * 3;	// マテリアル数分（スフィアマテリアル追加）
+	mat_dhd.NumDescriptors = Model->sub.materialNum * 4;	// マテリアル数分（スフィアマテリアル追加）
 	mat_dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
@@ -567,6 +613,26 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 			srvd.Format = Model->sphResource[i]->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
 				Model->sphResource[i],
+				&srvd,
+				mat_dHandle
+			);
+		}
+		mat_dHandle.ptr += inc;
+
+		// 拡張子がspaだったとき、sphResourceにポインタを入れる
+		if (Model->spaResource[i] == nullptr)
+		{
+			srvd.Format = srvd.Format = CreateBlackTexture()->GetDesc().Format;
+			DX12Renderer::GetDevice()->CreateShaderResourceView(
+				CreateBlackTexture(),
+				&srvd,
+				mat_dHandle);
+		}
+		else
+		{
+			srvd.Format = Model->spaResource[i]->GetDesc().Format;
+			DX12Renderer::GetDevice()->CreateShaderResourceView(
+				Model->spaResource[i],
 				&srvd,
 				mat_dHandle
 			);
@@ -664,6 +730,58 @@ ID3D12Resource* Object3D::CreateWhiteTexture()
 	);
 
 	return whiteBuff;
+}
+
+ID3D12Resource* Object3D::CreateBlackTexture()
+{
+	D3D12_HEAP_PROPERTIES tex_hp = {};
+
+	tex_hp.Type = D3D12_HEAP_TYPE_CUSTOM;
+	tex_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+	tex_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+	tex_hp.VisibleNodeMask = 0;
+
+	D3D12_RESOURCE_DESC rd = {};
+	rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	rd.Width = 4;
+	rd.Height = 4;
+	rd.DepthOrArraySize = 1;
+	rd.SampleDesc.Count = 1;
+	rd.SampleDesc.Quality = 0;
+	rd.MipLevels = 1;
+	rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	ID3D12Resource* blackBuff = nullptr;
+
+	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
+		&tex_hp,
+		D3D12_HEAP_FLAG_NONE,
+		&rd,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		nullptr,
+		IID_PPV_ARGS(&blackBuff)
+	);
+
+	if (FAILED(hr))
+	{
+		return nullptr;
+	}
+
+	std::vector<unsigned char> data(4 * 4 * 4);
+	std::fill(data.begin(), data.end(), 0x00);
+
+	// データ転送
+	hr = blackBuff->WriteToSubresource(
+		0,
+		nullptr,
+		data.data(),
+		4 * 4,
+		data.size()
+	);
+
+	return blackBuff;
 }
 
 std::string Object3D::GetExtension(const std::string& path)

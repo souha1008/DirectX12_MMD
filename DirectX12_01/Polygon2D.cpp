@@ -125,8 +125,8 @@ void Polygon2D::Draw()
 	auto material_handle = m_Model.materialDescHeap->GetGPUDescriptorHandleForHeapStart();
 	unsigned int idxOffset = 0;
 
-	// CBVとSRVで1マテリアルを描画するのでインクリメントサイズを二倍にする
-	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 3;
+	// CBVとSRVとSRVとSRVで1マテリアルを描画するのでインクリメントサイズを４倍にする
+	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
 
 	for (auto& m : m_Model.material)
 	{

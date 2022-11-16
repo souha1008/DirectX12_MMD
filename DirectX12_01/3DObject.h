@@ -96,6 +96,7 @@ typedef struct
 
     std::vector<ID3D12Resource*> TextureResource;
     std::vector<ID3D12Resource*> sphResource;
+    std::vector<ID3D12Resource*> spaResource;
 
     D3D12_VERTEX_BUFFER_VIEW vbView;  // 頂点バッファービュー
     D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー
@@ -138,9 +139,11 @@ public:
 
     std::string GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath);
     std::wstring GetWideStringFromString(const std::string& str);
-    ID3D12Resource* CreateWhiteTexture();
     std::string GetExtension(const std::string& path);
     std::pair<std::string, std::string> SplitFileName(const std::string& path, const char splitter = '*');
+    
+    ID3D12Resource* CreateWhiteTexture();
+    ID3D12Resource* CreateBlackTexture();
 
 
     void UnInit(MODEL_DX12* Model);
