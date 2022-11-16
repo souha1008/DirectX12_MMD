@@ -421,20 +421,19 @@ HRESULT DX12Renderer::CreateRootSignature()
 	dr[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// テクスチャ一つ目（マテリアルとペア）
-	dr[2].NumDescriptors = 2;	// テクスチャとsph
+	dr[2].NumDescriptors = 3;	// テクスチャとsphとsph
 	dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	dr[2].BaseShaderRegister = 0;
 	dr[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// ルートパラメータ作成
-	// ピクセルシェーダー
 	D3D12_ROOT_PARAMETER rootparam[2] = {};
 	rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;	// ピクセルシェーダーから見える
 	rootparam[0].DescriptorTable.pDescriptorRanges = &dr[0];	// ディスクリプタレンジのアドレス
 	rootparam[0].DescriptorTable.NumDescriptorRanges = 1;	// ディスクリプタレンジ数
 
-	// 頂点シェーダー
+	// テクスチャ
 	rootparam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootparam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// 頂点シェーダーから見える
 	rootparam[1].DescriptorTable.pDescriptorRanges = &dr[1];	// ディスクリプタレンジのアドレス
