@@ -411,7 +411,8 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 	fread(pmdMaterials.data(), pmdMaterials.size() * sizeof(PMDMaterial), 1, file);
 
 	Model->material.resize(materialNum);
-	Model->TextureResource.resize(materialNum);
+	Model->TextureResource.resize(materialNum); // マテリアルの数分テクスチャのリソース分確保
+	Model->sphResource.resize(materialNum);	// 同様
 
 	// コピー
 	for (int i = 0; i < pmdMaterials.size(); ++i)
@@ -502,7 +503,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	D3D12_DESCRIPTOR_HEAP_DESC mat_dhd = {};
 	mat_dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	mat_dhd.NodeMask = 0;
-	mat_dhd.NumDescriptors = Model->sub.materialNum * 2;	// シェーダーリソースビュー分を追加
+	mat_dhd.NumDescriptors = Model->sub.materialNum * 3;	// マテリアル数分（スフィアマテリアル追加）
 	mat_dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
@@ -550,7 +551,26 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 				mat_dHandle
 			);
 		}
+		mat_dHandle.ptr += inc;
 
+		// 拡張子がsphだったとき、sphResourceにポインタを入れる
+		if (Model->sphResource[i] == nullptr)
+		{
+			srvd.Format = srvd.Format = CreateWhiteTexture()->GetDesc().Format;
+			DX12Renderer::GetDevice()->CreateShaderResourceView(
+				CreateWhiteTexture(),
+				&srvd,
+				mat_dHandle);
+		}
+		else
+		{
+			srvd.Format = Model->sphResource[i]->GetDesc().Format;
+			DX12Renderer::GetDevice()->CreateShaderResourceView(
+				Model->sphResource[i],
+				&srvd,
+				mat_dHandle
+			);
+		}
 		mat_dHandle.ptr += inc;
 	}
 
