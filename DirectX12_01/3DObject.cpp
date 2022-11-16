@@ -68,7 +68,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 
 	// 定数バッファービュー設定
 	D3D12_CPU_DESCRIPTOR_HANDLE basicHeapHandle = Model->basicDescHeap->GetCPUDescriptorHandleForHeapStart();
-	basicHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//basicHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	hr = SettingConstBufferView(&basicHeapHandle, Model);
 
 	// ファイルクローズ
@@ -154,9 +154,9 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 	XMMATRIX WorldMatrix = XMMatrixRotationY(XM_PIDIV4);
 
 	// 視線
-	XMFLOAT3 eye(0, 15, -10);
+	XMFLOAT3 eye(0, 12, -25);
 	// 注視点
-	XMFLOAT3 target(0, 15, 0);
+	XMFLOAT3 target(0, 12, 0);
 	// 上ベクトル
 	XMFLOAT3 v_up(0, 1, 0);
 
@@ -164,7 +164,7 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 	XMMATRIX projMat;
 
 	viewMat = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up));
-	projMat = XMMatrixPerspectiveFovLH(XM_PIDIV2,//画角は90°
+	projMat = XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
 		static_cast<float>(SCREEN_WIDTH) / static_cast<float>(SCREEN_HEIGHT),//アス比
 		1.0f,//近い方
 		100.0f//遠い方
