@@ -1,0 +1,116 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="DX12Renderer.cpp">
+      <Filter>ソースファイル\レンダー</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>ソースファイル\メインモジュール</Filter>
+    </ClCompile>
+    <ClCompile Include="MainManager.cpp">
+      <Filter>ソースファイル\メインモジュール</Filter>
+    </ClCompile>
+    <ClCompile Include="Polygon2D.cpp">
+      <Filter>ソースファイル\オブジェクト\2Dオブジェクト</Filter>
+    </ClCompile>
+    <ClCompile Include="3DObject.cpp">
+      <Filter>ソースファイル\メインモジュール</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="framework.h">
+      <Filter>ヘッダーファイル\フレームワーク</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectX12_01.h">
+      <Filter>ヘッダーファイル\フレームワーク</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>ヘッダーファイル\フレームワーク</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>ヘッダーファイル\フレームワーク</Filter>
+    </ClInclude>
+    <ClInclude Include="MainManager.h">
+      <Filter>ヘッダーファイル\モジュール</Filter>
+    </ClInclude>
+    <ClInclude Include="DX12Renderer.h">
+      <Filter>ヘッダーファイル\レンダー</Filter>
+    </ClInclude>
+    <ClInclude Include="Polygon2D.h">
+      <Filter>ヘッダーファイル\オブジェクト\2Dオブジェクト</Filter>
+    </ClInclude>
+    <ClInclude Include="3DObject.h">
+      <Filter>ヘッダーファイル\モジュール</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="small.ico">
+      <Filter>Resource</Filter>
+    </Image>
+    <Image Include="DirectX12_01.ico">
+      <Filter>Resource</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="ヘッダーファイル">
+      <UniqueIdentifier>{4d8659b4-1e5c-4855-b0ef-91dd04a4bc28}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダーファイル\フレームワーク">
+      <UniqueIdentifier>{0fe2f2c4-3152-4162-9b99-d5d18c3707a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダーファイル\モジュール">
+      <UniqueIdentifier>{201046a1-400e-48ce-a349-f0876fc1a52f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource">
+      <UniqueIdentifier>{90f6c72f-867f-43ce-9ab2-044760cbabbf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル">
+      <UniqueIdentifier>{10670309-2409-49b5-8aec-ea50abd2c5c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\レンダー">
+      <UniqueIdentifier>{c7df3186-a803-4811-a087-251447ba0b45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダーファイル\レンダー">
+      <UniqueIdentifier>{368e1d03-1371-4f59-8e16-3b31c23839e1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\メインモジュール">
+      <UniqueIdentifier>{5d11ddc8-9ab4-45cc-ad64-4a1927fde9fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\オブジェクト">
+      <UniqueIdentifier>{f2195c22-24c1-44bc-a025-4664abf863d2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\オブジェクト\2Dオブジェクト">
+      <UniqueIdentifier>{28b44da2-9441-4894-9f6f-0c63af2dec8a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダーファイル\オブジェクト">
+      <UniqueIdentifier>{c2eb9335-4736-4186-82e9-cdc3afc77b5a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダーファイル\オブジェクト\2Dオブジェクト">
+      <UniqueIdentifier>{da24aebb-c0c2-434e-8a1f-8aa43768d1e6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダーファイル\シェーダー">
+      <UniqueIdentifier>{99f2747f-6a09-465a-bb71-f1402f6aeba5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\シェーダー">
+      <UniqueIdentifier>{7d95e3b0-501f-4e81-9ab5-a8d4e27975f3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="DirectX12_01.rc">
+      <Filter>Resource</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="BasicPixelShader.hlsl">
+      <Filter>ソースファイル\シェーダー</Filter>
+    </FxCompile>
+    <FxCompile Include="BasicVertexShader.hlsl">
+      <Filter>ソースファイル\シェーダー</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BasicShaderHeader.hlsli">
+      <Filter>ヘッダーファイル\シェーダー</Filter>
+    </None>
+  </ItemGroup>
+</Project>
