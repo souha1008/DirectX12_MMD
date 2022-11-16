@@ -82,9 +82,12 @@ typedef struct
 
 typedef struct
 {
-    XMFLOAT4X4 world; // モデル本体を回転させたり移動させたりする
-    XMFLOAT4X4 viewproj;   // ビューとプロジェクションの合成行列
-}MATRIXDATA;
+    XMMATRIX world; // モデル本体を回転させたり移動させたりする
+    XMMATRIX view;
+    XMMATRIX proj;
+    XMFLOAT3 eye;   // 視線座標
+    //XMFLOAT4X4 viewproj;   // ビューとプロジェクションの合成行列
+}SCENEMATRIX;
 
 typedef struct
 {
@@ -105,7 +108,7 @@ typedef struct
     ID3D12DescriptorHeap* basicDescHeap;
 
     TexMetadata MetaData;
-    MATRIXDATA* MapMatrix;
+    SCENEMATRIX* MapMatrix;
 
     std::vector<MATERIAL> material;
     SUBSET sub;
