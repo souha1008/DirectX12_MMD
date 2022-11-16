@@ -68,7 +68,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 
 	// 定数バッファービュー設定
 	D3D12_CPU_DESCRIPTOR_HANDLE basicHeapHandle = Model->basicDescHeap->GetCPUDescriptorHandleForHeapStart();
-	//basicHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//basicHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);	// ポインタずらし気を付けよう！
 	hr = SettingConstBufferView(&basicHeapHandle, Model);
 
 	// ファイルクローズ
@@ -434,6 +434,19 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 
 		// モデルとテクスチャパスからアプリケーションからのテクスチャパスを得る
 		std::string texFileName = pmdMaterials[i].texFilePath;
+		
+		if(std::count(texFileName.begin(), texFileName.end(), '*') > 0)
+		{ 
+			auto namepair = SplitFileName(texFileName);
+			if (GetExtension(namepair.first) == "sph" || GetExtension(namepair.first) == "spa")
+			{
+				texFileName = namepair.second;
+			}
+			else
+			{
+				texFileName = namepair.first;
+			}
+		}
 		auto texFilePath = GetTexturePathFromModelandTexPath(ModelPath, texFileName.c_str());
 		Model->TextureResource[i] = LoadTextureFromFile(Model, texFilePath);
 
@@ -631,6 +644,23 @@ ID3D12Resource* Object3D::CreateWhiteTexture()
 	);
 
 	return whiteBuff;
+}
+
+std::string Object3D::GetExtension(const std::string& path)
+{
+	int ind = path.rfind('.');
+
+	return path.substr(ind + 1, path.length() - ind - 1);
+}
+
+std::pair<std::string, std::string> Object3D::SplitFileName(const std::string& path, const char splitter)
+{
+	int idx = path.find(splitter);
+	std::pair<std::string, std::string> ret;
+	ret.first = path.substr(0, idx);
+	ret.second = path.substr(idx + 1, path.length() - idx - 1);
+	
+	return ret;
 }
 
 void Object3D::UnInit(MODEL_DX12* Model)
