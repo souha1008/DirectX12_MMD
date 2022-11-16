@@ -138,6 +138,9 @@ public:
     std::string GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath);
     std::wstring GetWideStringFromString(const std::string& str);
     ID3D12Resource* CreateWhiteTexture();
+    std::string GetExtension(const std::string& path);
+    std::pair<std::string, std::string> SplitFileName(const std::string& path, const char splitter = '*');
+
 
     void UnInit(MODEL_DX12* Model);
 

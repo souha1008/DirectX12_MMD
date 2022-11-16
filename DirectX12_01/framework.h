@@ -29,6 +29,7 @@
 #include <vector>
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 #pragma warning(push)
 #pragma warning(disable:4005)
