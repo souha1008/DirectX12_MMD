@@ -178,7 +178,7 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 	//matrix.r[3].m128_f32[3] = 1.0f;
 
 	CD3DX12_HEAP_PROPERTIES cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);	// d3d12x.h
-	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer((sizeof(MATRIXDATA) + 0xff) & ~0xff);		// d3d12x.h
+	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer((sizeof(SCENEMATRIX) + 0xff) & ~0xff);		// d3d12x.h
 
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
@@ -192,8 +192,11 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 
 	hr = Model->ConstBuffer->Map(0, nullptr, (void**)&Model->MapMatrix);
 
-	XMStoreFloat4x4(&Model->MapMatrix->world, WorldMatrix);
-	XMStoreFloat4x4(&Model->MapMatrix->viewproj, viewMat * projMat);
+	Model->MapMatrix->world = WorldMatrix;
+	Model->MapMatrix->view = viewMat;
+	Model->MapMatrix->proj = projMat;
+	Model->MapMatrix->eye = eye;
+	//XMStoreFloat4x4(&Model->MapMatrix->viewproj, viewMat * projMat);
 
 	return hr;
 }

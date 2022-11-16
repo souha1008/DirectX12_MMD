@@ -81,7 +81,7 @@ void Polygon2D::Init()
 
 	g_Object = new Object3D();
 
-	HRESULT hr = g_Object->CreateModel("Model/„‰¹ƒ‹ƒJ.pmd", &m_Model);
+	HRESULT hr = g_Object->CreateModel("Model/‰‰¹ƒ~ƒNmetal.pmd", &m_Model);
 
 	if (FAILED(hr))
 	{
@@ -98,7 +98,7 @@ void Polygon2D::Uninit()
 
 void Polygon2D::Update()
 {
-	PolygonRotation();
+	//PolygonRotation();
 
 	//PolygonMove();
 }
@@ -386,7 +386,7 @@ HRESULT Polygon2D::CreateShaderResourceView()
 void Polygon2D::PolygonRotation()
 {
 	g_angle += 0.01f;
-	XMStoreFloat4x4(&m_Model.MapMatrix->world, XMMatrixRotationY(g_angle));
+	//XMStoreFloat4x4(&m_Model.MapMatrix->world, XMMatrixRotationY(g_angle));
 	//m_Model.MapMatrix->viewproj = m_Model.viewMat * m_Model.projMat;
 }
 
