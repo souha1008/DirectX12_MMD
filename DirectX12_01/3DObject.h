@@ -95,6 +95,7 @@ typedef struct
     ID3D12Resource* MaterialBuffer;
 
     std::vector<ID3D12Resource*> TextureResource;
+    std::vector<ID3D12Resource*> sphResource;
 
     D3D12_VERTEX_BUFFER_VIEW vbView;  // 頂点バッファービュー
     D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー

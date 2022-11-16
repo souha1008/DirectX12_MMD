@@ -126,7 +126,7 @@ void Polygon2D::Draw()
 	unsigned int idxOffset = 0;
 
 	// CBVとSRVで1マテリアルを描画するのでインクリメントサイズを二倍にする
-	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 2;
+	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 3;
 
 	for (auto& m : m_Model.material)
 	{
