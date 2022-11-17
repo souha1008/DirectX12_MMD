@@ -30,6 +30,7 @@
 #include <iostream>
 #include <string>
 #include <algorithm>
+#include <map>
 
 #pragma warning(push)
 #pragma warning(disable:4005)

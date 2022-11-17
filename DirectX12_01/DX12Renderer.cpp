@@ -421,7 +421,7 @@ HRESULT DX12Renderer::CreateRootSignature()
 	dr[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// テクスチャ一つ目（マテリアルとペア）
-	dr[2].NumDescriptors = 3;	// テクスチャとsphとsph
+	dr[2].NumDescriptors = 4;	// テクスチャとsphとsph
 	dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	dr[2].BaseShaderRegister = 0;
 	dr[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;

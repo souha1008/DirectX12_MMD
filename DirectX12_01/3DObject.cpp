@@ -7,6 +7,9 @@ using namespace DirectX;
 // テクスチャ情報
 std::vector<TEXRGBA> g_Texture(256 * 256);
 
+// ロード用ラムダ式
+using LoadLambda_t = std::function<HRESULT(const std::wstring& path, TexMetadata*, ScratchImage&)>;
+
 HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 {
 	PMDHeader pmdheader;
