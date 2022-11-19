@@ -2,21 +2,21 @@
 #include "DX12Renderer.h"
 
 // staticメンバ変数
-ID3D12Device* DX12Renderer::m_Device = nullptr;
-IDXGIFactory6* DX12Renderer::m_DXGIFactry = nullptr;
-IDXGISwapChain4* DX12Renderer::m_SwapChain4 = nullptr;
-ID3D12Resource* DX12Renderer::m_DepthBuffer = nullptr;
-ID3D12DescriptorHeap* DX12Renderer::m_DSVDescHeap = nullptr;
-ID3D12CommandAllocator* DX12Renderer::m_CmdAllocator = nullptr;
-ID3D12GraphicsCommandList* DX12Renderer::m_GCmdList = nullptr;
-ID3D12CommandQueue* DX12Renderer::m_CmdQueue = nullptr;
-ID3D12DescriptorHeap* DX12Renderer::m_DescHeap = nullptr;
-ID3D12RootSignature* DX12Renderer::m_RootSignature = nullptr;
-ID3D12PipelineState* DX12Renderer::m_PipelineState = nullptr;
-ID3D12Fence* DX12Renderer::m_Fence = nullptr;
-ID3DBlob* DX12Renderer::m_VSBlob = nullptr;
-ID3DBlob* DX12Renderer::m_PSBlob = nullptr;
-ID3DBlob* DX12Renderer::m_ErrorBlob = nullptr;
+ComPtr<ID3D12Device> DX12Renderer::m_Device = nullptr;
+ComPtr<IDXGIFactory6> DX12Renderer::m_DXGIFactry = nullptr;
+ComPtr<IDXGISwapChain4> DX12Renderer::m_SwapChain4 = nullptr;
+ComPtr<ID3D12Resource> DX12Renderer::m_DepthBuffer = nullptr;
+ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_DSVDescHeap = nullptr;
+ComPtr<ID3D12CommandAllocator> DX12Renderer::m_CmdAllocator = nullptr;
+ComPtr<ID3D12GraphicsCommandList> DX12Renderer::m_GCmdList = nullptr;
+ComPtr<ID3D12CommandQueue> DX12Renderer::m_CmdQueue = nullptr;
+ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_DescHeap = nullptr;
+ComPtr<ID3D12RootSignature> DX12Renderer::m_RootSignature = nullptr;
+ComPtr<ID3D12PipelineState> DX12Renderer::m_PipelineState = nullptr;
+ComPtr<ID3D12Fence> DX12Renderer::m_Fence = nullptr;
+ComPtr<ID3DBlob> DX12Renderer::m_VSBlob = nullptr;
+ComPtr<ID3DBlob> DX12Renderer::m_PSBlob = nullptr;
+ComPtr<ID3DBlob> DX12Renderer::m_ErrorBlob = nullptr;
 UINT64 DX12Renderer::m_FenceVal = 0;
 D3D12_RESOURCE_BARRIER DX12Renderer::m_Barrier = {};
 std::vector<ID3D12Resource*> DX12Renderer::m_BackBuffers;
@@ -78,16 +78,15 @@ void DX12Renderer::Init()
 
 void DX12Renderer::Uninit()
 {
-	m_PipelineState->Release();
-	m_RootSignature->Release();
-	m_BackBuffers.clear();
-	m_DescHeap->Release();
-	m_SwapChain4->Release();
-	m_CmdAllocator->Release();
-	m_GCmdList->Release();
-	m_CmdQueue->Release();
-	m_Device->Release();
-	m_DXGIFactry->Release();
+	m_PipelineState.ReleaseAndGetAddressOf();
+	m_RootSignature.ReleaseAndGetAddressOf();
+	m_DescHeap.ReleaseAndGetAddressOf();
+	m_SwapChain4.ReleaseAndGetAddressOf();
+	m_CmdAllocator.ReleaseAndGetAddressOf();
+	m_GCmdList.ReleaseAndGetAddressOf();
+	m_CmdQueue.ReleaseAndGetAddressOf();
+	m_Device.ReleaseAndGetAddressOf();
+	m_DXGIFactry.ReleaseAndGetAddressOf();
 }
 
 void DX12Renderer::Begin()
@@ -125,10 +124,10 @@ void DX12Renderer::Begin()
 	m_GCmdList->RSSetScissorRects(1, &g_Scissorect);
 
 	// ルートシグネチャセット
-	m_GCmdList->SetGraphicsRootSignature(m_RootSignature);
+	m_GCmdList->SetGraphicsRootSignature(m_RootSignature.Get());
 
 	// パイプラインセット
-	m_GCmdList->SetPipelineState(m_PipelineState);
+	m_GCmdList->SetPipelineState(m_PipelineState.Get());
 
 }
 
@@ -150,11 +149,11 @@ void DX12Renderer::End()
 	m_GCmdList->Close();
 
 	// コマンドリストの実行
-	ID3D12CommandList* cmdlist[] = { m_GCmdList };
+	ID3D12CommandList* cmdlist[] = { m_GCmdList.Get() };
 	m_CmdQueue->ExecuteCommandLists(1, cmdlist);
 
 	// 待ち
-	m_CmdQueue->Signal(m_Fence, ++m_FenceVal);
+	m_CmdQueue->Signal(m_Fence.Get(), ++m_FenceVal);
 	if (m_Fence->GetCompletedValue() != m_FenceVal) {
 		auto event = CreateEvent(nullptr, false, false, nullptr);
 		m_Fence->SetEventOnCompletion(m_FenceVal, event);
@@ -163,7 +162,7 @@ void DX12Renderer::End()
 	}
 
 	m_CmdAllocator->Reset();
-	m_GCmdList->Reset(m_CmdAllocator, m_PipelineState);
+	m_GCmdList->Reset(m_CmdAllocator.Get(), m_PipelineState.Get());
 
 	// フリップ
 	m_SwapChain4->Present(1, 0);
@@ -183,7 +182,7 @@ void DX12Renderer::EnableDebugLayer()
 
 HRESULT DX12Renderer::CreateFactory()
 {
-	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&m_DXGIFactry));
+	HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(m_DXGIFactry.ReleaseAndGetAddressOf()));
 	return hr;
 }
 
@@ -225,7 +224,7 @@ HRESULT DX12Renderer::CreateDevice()
 	D3D_FEATURE_LEVEL FeatureLevel;
 	for (auto l : levels)
 	{
-		if (D3D12CreateDevice(tmpAdapter, l, IID_PPV_ARGS(&m_Device)) == S_OK)
+		if (D3D12CreateDevice(tmpAdapter, l, IID_PPV_ARGS(m_Device.ReleaseAndGetAddressOf())) == S_OK)
 		{
 			hr = S_OK;
 			FeatureLevel = l;
@@ -246,7 +245,7 @@ HRESULT DX12Renderer::CreateCommandQueue()
 	qDesc.NodeMask = 0;	/// アダプターを一つしか使わないときは０
 	qDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;	/// プライオリティは特に指定なし
 	qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;	/// コマンドリストと合わせる
-	hr = m_Device->CreateCommandQueue(&qDesc, IID_PPV_ARGS(&m_CmdQueue));
+	hr = m_Device->CreateCommandQueue(&qDesc, IID_PPV_ARGS(m_CmdQueue.ReleaseAndGetAddressOf()));
 	return hr;
 }
 
@@ -255,10 +254,10 @@ HRESULT DX12Renderer::CreateCommandList_Allocator()
 	HRESULT hr;
 
 	/// コマンドアロケータ生成
-	hr = m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_CmdAllocator));
+	hr = m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(m_CmdAllocator.ReleaseAndGetAddressOf()));
 
 	/// コマンドリスト生成
-	hr = m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CmdAllocator, nullptr, IID_PPV_ARGS(&m_GCmdList));
+	hr = m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_CmdAllocator.Get(), nullptr, IID_PPV_ARGS(m_GCmdList.ReleaseAndGetAddressOf()));
 	return hr;
 }
 
@@ -283,12 +282,12 @@ HRESULT DX12Renderer::CreateSwapChain()
 
 	/// SwapChain生成
 	hr = m_DXGIFactry->CreateSwapChainForHwnd(
-		m_CmdQueue,
+		m_CmdQueue.Get(),
 		GetWindow(),
 		&swapDesc,
 		nullptr,
 		nullptr,
-		(IDXGISwapChain1**)&m_SwapChain4
+		(IDXGISwapChain1**)m_SwapChain4.ReleaseAndGetAddressOf()
 	);
 	return hr;
 }
@@ -353,7 +352,7 @@ HRESULT DX12Renderer::CreateDepthBufferView()
 	dhd.NumDescriptors = 1;	// 深度バッファーは１つ
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;	// デプスステンシャルビューとして使う
 	
-	HRESULT hr = m_Device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&m_DSVDescHeap));
+	HRESULT hr = m_Device->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(m_DSVDescHeap.ReleaseAndGetAddressOf()));
 
 	// 深度ビュー作成
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvd = {};
@@ -362,7 +361,7 @@ HRESULT DX12Renderer::CreateDepthBufferView()
 	dsvd.Flags = D3D12_DSV_FLAG_NONE;
 
 	m_Device->CreateDepthStencilView(
-		m_DepthBuffer,
+		m_DepthBuffer.Get(),
 		&dsvd,
 		m_DSVDescHeap->GetCPUDescriptorHandleForHeapStart()
 	);
@@ -383,7 +382,7 @@ HRESULT DX12Renderer::CreateDescripterHeap()
 	hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
 	/// ディスクリプタヒープ生成
-	hr = m_Device->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&m_DescHeap));
+	hr = m_Device->CreateDescriptorHeap(&hd, IID_PPV_ARGS(m_DescHeap.ReleaseAndGetAddressOf()));
 	return hr;
 }
 
@@ -416,7 +415,7 @@ HRESULT DX12Renderer::CreateRenderTargetView()
 
 HRESULT DX12Renderer::CreateFence()
 {
-	HRESULT hr = m_Device->CreateFence(m_FenceVal, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_Fence));
+	HRESULT hr = m_Device->CreateFence(m_FenceVal, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_Fence.ReleaseAndGetAddressOf()));
 	return hr;
 }
 
@@ -492,7 +491,7 @@ HRESULT DX12Renderer::CreateRootSignature()
 
 	ID3DBlob* RootSigBlob = nullptr;
 	hr = D3D12SerializeRootSignature(&rsd, D3D_ROOT_SIGNATURE_VERSION_1_0, &RootSigBlob, &m_ErrorBlob);
-	hr = m_Device->CreateRootSignature(0, RootSigBlob->GetBufferPointer(), RootSigBlob->GetBufferSize(), IID_PPV_ARGS(&m_RootSignature));
+	hr = m_Device->CreateRootSignature(0, RootSigBlob->GetBufferPointer(), RootSigBlob->GetBufferSize(), IID_PPV_ARGS(m_RootSignature.ReleaseAndGetAddressOf()));
 	RootSigBlob->Release();
 	return hr;
 }
@@ -509,7 +508,7 @@ HRESULT DX12Renderer::CreatePipelineState()
 		"BasicVS","vs_5_0",
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
 		0,
-		&m_VSBlob, &m_ErrorBlob);
+		m_VSBlob.ReleaseAndGetAddressOf(), m_ErrorBlob.ReleaseAndGetAddressOf());
 
 	if (FAILED(hr)) {
 		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) {
@@ -533,7 +532,7 @@ HRESULT DX12Renderer::CreatePipelineState()
 		"BasicPS", "ps_5_0",
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
 		0,
-		&m_PSBlob, &m_ErrorBlob
+		m_PSBlob.ReleaseAndGetAddressOf(), m_ErrorBlob.ReleaseAndGetAddressOf()
 	);
 
 	if (FAILED(hr)) {
@@ -585,8 +584,8 @@ HRESULT DX12Renderer::CreatePipelineState()
 	//gpsd.VS.BytecodeLength = m_VSBlob->GetBufferSize();
 	//gpsd.PS.pShaderBytecode = m_PSBlob->GetBufferPointer();
 	//gpsd.PS.BytecodeLength = m_PSBlob->GetBufferSize();
-	gpsd.VS = CD3DX12_SHADER_BYTECODE(m_VSBlob);
-	gpsd.PS = CD3DX12_SHADER_BYTECODE(m_PSBlob);
+	gpsd.VS = CD3DX12_SHADER_BYTECODE(m_VSBlob.Get());
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(m_PSBlob.Get());
 
 	gpsd.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;	// 中身は0xffffff
 
@@ -644,9 +643,9 @@ HRESULT DX12Renderer::CreatePipelineState()
 
 	gpsd.SampleDesc.Count = 1;//サンプリングは1ピクセルにつき１
 	gpsd.SampleDesc.Quality = 0;//クオリティは最低
-	gpsd.pRootSignature = m_RootSignature;
+	gpsd.pRootSignature = m_RootSignature.Get();
 
-	hr = m_Device->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(&m_PipelineState));
+	hr = m_Device->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_PipelineState.ReleaseAndGetAddressOf()));
 
 	return hr;
 }
