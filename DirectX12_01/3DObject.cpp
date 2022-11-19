@@ -357,25 +357,37 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 	const Image* img = scratchImg.GetImage(0, 0, 0);	// 生データ抽出
 
 	// WriteToSubresourceで転送する用のヒープ設定
-	D3D12_HEAP_PROPERTIES texhp = {};
-	texhp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	texhp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	texhp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	texhp.CreationNodeMask = 0;	// 単一アダプタのため0
-	texhp.VisibleNodeMask = 0;	// 単一アダプタのため0
+	
+	//D3D12_HEAP_PROPERTIES texhp = {};
+	//texhp.Type = D3D12_HEAP_TYPE_CUSTOM;
+	//texhp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+	//texhp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+	//texhp.CreationNodeMask = 0;	// 単一アダプタのため0
+	//texhp.VisibleNodeMask = 0;	// 単一アダプタのため0
+
+	CD3DX12_HEAP_PROPERTIES texhp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
+	
 
 	// リソース設定
-	D3D12_RESOURCE_DESC rd = {};
-	rd.Format = metadata.format;
-	rd.Width = metadata.width;
-	rd.Height = metadata.height;
-	rd.DepthOrArraySize = metadata.arraySize;
-	rd.SampleDesc.Count = 1;	// 通常テクスチャなのでアンチエイリアシングしない
-	rd.SampleDesc.Quality = 0;	// クオリティは0
-	rd.MipLevels = metadata.mipLevels;
-	rd.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-	rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	//D3D12_RESOURCE_DESC rd = {};
+	//rd.Format = metadata.format;
+	//rd.Width = metadata.width;
+	//rd.Height = metadata.height;
+	//rd.DepthOrArraySize = metadata.arraySize;
+	//rd.SampleDesc.Count = 1;	// 通常テクスチャなのでアンチエイリアシングしない
+	//rd.SampleDesc.Quality = 0;	// クオリティは0
+	//rd.MipLevels = metadata.mipLevels;
+	//rd.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
+	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(
+		metadata.format, 
+		metadata.width, 
+		metadata.height,
+		metadata.arraySize,
+		metadata.mipLevels);
 
 	hr = DX12Renderer::GetDevice()->CreateCommittedResource(
 		&texhp,
@@ -722,24 +734,27 @@ std::wstring Object3D::GetWideStringFromString(const std::string& str)
 
 ID3D12Resource* Object3D::CreateWhiteTexture()
 {
-	D3D12_HEAP_PROPERTIES tex_hp = {};
+	//D3D12_HEAP_PROPERTIES tex_hp = {};
+	//tex_hp.Type = D3D12_HEAP_TYPE_CUSTOM;
+	//tex_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+	//tex_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+	//tex_hp.VisibleNodeMask = 0;
 
-	tex_hp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	tex_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	tex_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	tex_hp.VisibleNodeMask = 0;
+	CD3DX12_HEAP_PROPERTIES tex_hp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0, 1, 0);
 
-	D3D12_RESOURCE_DESC rd = {};
-	rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	rd.Width = 4;
-	rd.Height = 4;
-	rd.DepthOrArraySize = 1;
-	rd.SampleDesc.Count = 1;
-	rd.SampleDesc.Quality = 0;
-	rd.MipLevels = 1;
-	rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+	//D3D12_RESOURCE_DESC rd = {};
+	//rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//rd.Width = 4;
+	//rd.Height = 4;
+	//rd.DepthOrArraySize = 1;
+	//rd.SampleDesc.Count = 1;
+	//rd.SampleDesc.Quality = 0;
+	//rd.MipLevels = 1;
+	//rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 4);
 
 	ID3D12Resource* whiteBuff = nullptr;
 
@@ -774,24 +789,27 @@ ID3D12Resource* Object3D::CreateWhiteTexture()
 
 ID3D12Resource* Object3D::CreateBlackTexture()
 {
-	D3D12_HEAP_PROPERTIES tex_hp = {};
+	//D3D12_HEAP_PROPERTIES tex_hp = {};
+	//tex_hp.Type = D3D12_HEAP_TYPE_CUSTOM;
+	//tex_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+	//tex_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+	//tex_hp.VisibleNodeMask = 0;
 
-	tex_hp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	tex_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	tex_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	tex_hp.VisibleNodeMask = 0;
+	CD3DX12_HEAP_PROPERTIES tex_hp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0, 1, 0);
 
-	D3D12_RESOURCE_DESC rd = {};
-	rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	rd.Width = 4;
-	rd.Height = 4;
-	rd.DepthOrArraySize = 1;
-	rd.SampleDesc.Count = 1;
-	rd.SampleDesc.Quality = 0;
-	rd.MipLevels = 1;
-	rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+	//D3D12_RESOURCE_DESC rd = {};
+	//rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//rd.Width = 4;
+	//rd.Height = 4;
+	//rd.DepthOrArraySize = 1;
+	//rd.SampleDesc.Count = 1;
+	//rd.SampleDesc.Quality = 0;
+	//rd.MipLevels = 1;
+	//rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 4);
 
 	ID3D12Resource* blackBuff = nullptr;
 
@@ -826,17 +844,19 @@ ID3D12Resource* Object3D::CreateBlackTexture()
 
 ID3D12Resource* Object3D::CreateGrayGradationTexture()
 {
-	D3D12_RESOURCE_DESC rd = {};
-	rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	rd.Width = 4;
-	rd.Height = 256;
-	rd.DepthOrArraySize = 1;
-	rd.SampleDesc.Count = 1;
-	rd.SampleDesc.Quality = 0;
-	rd.MipLevels = 1;
-	rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+	//D3D12_RESOURCE_DESC rd = {};
+	//rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//rd.Width = 4;
+	//rd.Height = 256;
+	//rd.DepthOrArraySize = 1;
+	//rd.SampleDesc.Count = 1;
+	//rd.SampleDesc.Quality = 0;
+	//rd.MipLevels = 1;
+	//rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 256);
 
 	// 上が白くて下が黒いテクスチャ作成
 	std::vector<unsigned int> data(4 * 256);

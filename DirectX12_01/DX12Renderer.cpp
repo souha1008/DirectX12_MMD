@@ -295,25 +295,40 @@ HRESULT DX12Renderer::CreateDepthBuffer()
 	// 深度バッファーの作成
 
 	// 深度バッファー用リソース設定
-	D3D12_RESOURCE_DESC rd = {};
-	rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;	// 2次元のテクスチャデータ
-	rd.Width = SCREEN_WIDTH;
-	rd.Height = SCREEN_HEIGHT;
-	rd.DepthOrArraySize = 1;	//	テクスチャ配列でも3Dテクスチャでもない
-	rd.Format = DXGI_FORMAT_D32_FLOAT;	// 深度値書き込み用フォーマット
-	rd.SampleDesc.Count = 1;	// サンプルは1ピクセル当たり1つ
-	rd.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;	// デプスステンシルとして使用
+	//D3D12_RESOURCE_DESC rd = {};
+	//rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;	// 2次元のテクスチャデータ
+	//rd.Width = SCREEN_WIDTH;
+	//rd.Height = SCREEN_HEIGHT;
+	//rd.DepthOrArraySize = 1;	//	テクスチャ配列でも3Dテクスチャでもない
+	//rd.Format = DXGI_FORMAT_D32_FLOAT;	// 深度値書き込み用フォーマット
+	//rd.SampleDesc.Count = 1;	// サンプルは1ピクセル当たり1つ
+	//rd.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;	// デプスステンシルとして使用
+
+	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(						// d3dx12
+		DXGI_FORMAT_D32_FLOAT,		// 深度値書き込み用フォーマット
+		SCREEN_WIDTH,
+		SCREEN_HEIGHT,
+		1,							//	テクスチャ配列でも3Dテクスチャでもない
+		1,							// ミップマップは1
+		1,							// サンプルは1ピクセル当たり1つ
+		0,							// クオリティは0
+		D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
+	);
 
 	// 深度値用ヒーププロパティ
-	D3D12_HEAP_PROPERTIES depth_hp = {};
-	depth_hp.Type = D3D12_HEAP_TYPE_DEFAULT;	// DEFAULTなのであとはUNKNOWNでよい
-	depth_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	depth_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	//D3D12_HEAP_PROPERTIES depth_hp = {};
+	//depth_hp.Type = D3D12_HEAP_TYPE_DEFAULT;	// DEFAULTなのであとはUNKNOWNでよい
+	//depth_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	//depth_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	
+	CD3DX12_HEAP_PROPERTIES depth_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);	// d3dx12
 
 	// このクリアバリューが重要な意味を持つ
-	D3D12_CLEAR_VALUE depth_cv = {};
-	depth_cv.DepthStencil.Depth = 1.0f;
-	depth_cv.Format = DXGI_FORMAT_D32_FLOAT;	// 32ビットFLOAT値としてクリア
+	//D3D12_CLEAR_VALUE depth_cv = {};
+	//depth_cv.DepthStencil.Depth = 1.0f;
+	//depth_cv.Format = DXGI_FORMAT_D32_FLOAT;	// 32ビットFLOAT値としてクリア
+
+	CD3DX12_CLEAR_VALUE depth_cv = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_D32_FLOAT, 1.0f, 0);		// d3dx12
 
 	HRESULT hr = m_Device->CreateCommittedResource(
 		&depth_hp,
@@ -557,50 +572,60 @@ HRESULT DX12Renderer::CreatePipelineState()
 	// グラフィックパイプラインステート作成
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsd = {};
 	gpsd.pRootSignature = nullptr;
-	gpsd.VS.pShaderBytecode = m_VSBlob->GetBufferPointer();
-	gpsd.VS.BytecodeLength = m_VSBlob->GetBufferSize();
-	gpsd.PS.pShaderBytecode = m_PSBlob->GetBufferPointer();
-	gpsd.PS.BytecodeLength = m_PSBlob->GetBufferSize();
+	//gpsd.VS.pShaderBytecode = m_VSBlob->GetBufferPointer();
+	//gpsd.VS.BytecodeLength = m_VSBlob->GetBufferSize();
+	//gpsd.PS.pShaderBytecode = m_PSBlob->GetBufferPointer();
+	//gpsd.PS.BytecodeLength = m_PSBlob->GetBufferSize();
+	gpsd.VS = CD3DX12_SHADER_BYTECODE(m_VSBlob);
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(m_PSBlob);
 
 	gpsd.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;	// 中身は0xffffff
 
-	gpsd.BlendState.AlphaToCoverageEnable = false;
-	gpsd.BlendState.IndependentBlendEnable = false;
 
 	D3D12_RENDER_TARGET_BLEND_DESC rtbd = {};
-	// αブレンディングは使用しない
-	rtbd.BlendEnable = false;
+
+	rtbd.BlendEnable = false;	// αブレンディングは使用しない
 	rtbd.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	// 論理演算は使用しない
-	rtbd.LogicOpEnable = false;
+	rtbd.LogicOpEnable = false;		// 論理演算は使用しない
 
-	gpsd.BlendState.RenderTarget[0] = rtbd;
+	// ブレンドステート
+	//gpsd.BlendState.AlphaToCoverageEnable = false;
+	//gpsd.BlendState.IndependentBlendEnable = false;
+	//gpsd.BlendState.RenderTarget[0] = rtbd;
 
-	gpsd.RasterizerState.MultisampleEnable = false;//まだアンチェリは使わない
+	// ブレンドステート省略
+	gpsd.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+	// ラスタライザー
+	//gpsd.RasterizerState.MultisampleEnable = false;//まだアンチェリは使わない
+	//gpsd.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;//カリングしない
+	//gpsd.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//中身を塗りつぶす
+	//gpsd.RasterizerState.DepthClipEnable = true;//深度方向のクリッピングは有効に
+	//gpsd.RasterizerState.FrontCounterClockwise = false;
+	//gpsd.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	//gpsd.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	//gpsd.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	//gpsd.RasterizerState.AntialiasedLineEnable = false;
+	//gpsd.RasterizerState.ForcedSampleCount = 0;
+	//gpsd.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+	// ラスタライザーステート省略
+	gpsd.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	gpsd.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;//カリングしない
-	gpsd.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//中身を塗りつぶす
-	gpsd.RasterizerState.DepthClipEnable = true;//深度方向のクリッピングは有効に
-
-	//残り
-	gpsd.RasterizerState.FrontCounterClockwise = false;
-	gpsd.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-	gpsd.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	gpsd.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	gpsd.RasterizerState.AntialiasedLineEnable = false;
-	gpsd.RasterizerState.ForcedSampleCount = 0;
-	gpsd.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 	
 	// 深度バッファーの設定
-	gpsd.DepthStencilState.DepthEnable = true;
-	gpsd.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	gpsd.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;	// 小さいほう採用
-	gpsd.DepthStencilState.StencilEnable = false;
+	//gpsd.DepthStencilState.DepthEnable = true;
+	//gpsd.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	//gpsd.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;	// 小さいほう採用
+	//gpsd.DepthStencilState.StencilEnable = false;
+	
+	// 深度バッファー省略
+	gpsd.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+
 	gpsd.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	//レイアウト先頭アドレス
-	gpsd.InputLayout.pInputElementDescs = InputLayout;
-	//レイアウトの配列要素数
-	gpsd.InputLayout.NumElements = _countof(InputLayout);
+	gpsd.InputLayout.pInputElementDescs = InputLayout;	//レイアウト先頭アドレス
+	gpsd.InputLayout.NumElements = _countof(InputLayout);	//レイアウトの配列要素数
 
 	gpsd.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;//ストリップ時のカットなし
 	gpsd.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;//三角形で構成
