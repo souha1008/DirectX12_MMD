@@ -15,7 +15,7 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
-#include <wrl.h>]
+#include <wrl.h>
 
 using namespace Microsoft::WRL;
 

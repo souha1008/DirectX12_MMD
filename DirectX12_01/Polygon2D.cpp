@@ -115,14 +115,16 @@ void Polygon2D::Draw()
 	DX12Renderer::GetGraphicsCommandList()->IASetIndexBuffer(&m_Model.ibView);
 
 	// テクスチャーのデスクリプターヒープセット
-	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, &m_Model.basicDescHeap);
+	ID3D12DescriptorHeap* bdh[] = { m_Model.basicDescHeap.Get() };
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, bdh);
 	// ルートパラメータとディスクリプターヒープの関連付け
-	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, m_Model.basicDescHeap->GetGPUDescriptorHandleForHeapStart());
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, m_Model.basicDescHeap.Get()->GetGPUDescriptorHandleForHeapStart());
 
 	// マテリアルのディスクリプタヒープセット
-	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, &m_Model.materialDescHeap);
+	ID3D12DescriptorHeap* mdh[] = { m_Model.materialDescHeap.Get() };
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, mdh);
 
-	auto material_handle = m_Model.materialDescHeap->GetGPUDescriptorHandleForHeapStart();
+	auto material_handle = m_Model.materialDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
 	unsigned int idxOffset = 0;
 
 	// CBVとSRVとSRVとSRVで1マテリアルを描画するのでインクリメントサイズを４倍にする

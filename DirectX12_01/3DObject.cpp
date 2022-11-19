@@ -28,7 +28,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 
 	constexpr size_t pmdVertex_size = 38;	// 1頂点あたりのサイズ
 	std::vector<PMDVertex> vertices(vertNum);	// バッファー確保
-	for (int i = 0; i < vertNum; i++)
+	for (unsigned int i = 0; i < vertNum; i++)
 	{
 		fread(&vertices[i], pmdVertex_size, 1, fp);
 	}
@@ -72,7 +72,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	hr = CreateShaderResourceView(Model);
 
 	// 定数バッファービュー設定
-	D3D12_CPU_DESCRIPTOR_HANDLE basicHeapHandle = Model->basicDescHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE basicHeapHandle = Model->basicDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 	//basicHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);	// ポインタずらし気を付けよう！
 	hr = SettingConstBufferView(&basicHeapHandle, Model);
 
@@ -96,21 +96,21 @@ HRESULT Object3D::CreateVertexBuffer(MODEL_DX12* Model, std::vector<PMDVertex> v
 		&cd_buffer,		// サイズに応じて適切な設定をする
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&Model->VertexBuffer)
+		IID_PPV_ARGS(Model->VertexBuffer.ReleaseAndGetAddressOf())
 	);
 
 	// 頂点バッファーマップ
 	PMDVertex* vertMap = nullptr;
-	hr = Model->VertexBuffer->Map(0, nullptr, (void**)&vertMap);
+	hr = Model->VertexBuffer.Get()->Map(0, nullptr, (void**)&vertMap);
 	std::copy(vertices.begin(), vertices.end(), vertMap);
-	Model->VertexBuffer->Unmap(0, nullptr);
+	Model->VertexBuffer.Get()->Unmap(0, nullptr);
 
 	return hr;
 }
 
 HRESULT Object3D::SettingVertexBufferView(MODEL_DX12* Model, std::vector<PMDVertex> vertices, size_t pmdVertex_size)
 {
-	Model->vbView.BufferLocation = Model->VertexBuffer->GetGPUVirtualAddress(); // バッファの仮想アドレス
+	Model->vbView.BufferLocation = Model->VertexBuffer.Get()->GetGPUVirtualAddress(); // バッファの仮想アドレス
 	Model->vbView.SizeInBytes = static_cast<UINT>(vertices.size() * sizeof(PMDVertex));	// 全バイト数
 	Model->vbView.StrideInBytes = sizeof(PMDVertex);	// 1頂点あたりのバイト数
 
@@ -135,20 +135,20 @@ HRESULT Object3D::CreateIndexBuffer(MODEL_DX12* Model, std::vector<unsigned shor
 		&cd_buffer,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&Model->IndexBuffer)
+		IID_PPV_ARGS(Model->IndexBuffer.ReleaseAndGetAddressOf())
 	);
 	// インデックスバッファーマップ
 	unsigned short* indMap = nullptr;
-	Model->IndexBuffer->Map(0, nullptr, (void**)&indMap);
+	Model->IndexBuffer.Get()->Map(0, nullptr, (void**)&indMap);
 	std::copy(std::begin(index), std::end(index), indMap);
-	Model->IndexBuffer->Unmap(0, nullptr);
+	Model->IndexBuffer.Get()->Unmap(0, nullptr);
 
 	return hr;
 }
 
 HRESULT Object3D::SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned short> index)
 {
-	Model->ibView.BufferLocation = Model->IndexBuffer->GetGPUVirtualAddress();
+	Model->ibView.BufferLocation = Model->IndexBuffer.Get()->GetGPUVirtualAddress();
 	Model->ibView.Format = DXGI_FORMAT_R16_UINT;
 	Model->ibView.SizeInBytes = static_cast<UINT>(index.size() * sizeof(index[0]));
 	return S_OK;
@@ -192,10 +192,10 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 		&cd_buffer,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&Model->ConstBuffer)
+		IID_PPV_ARGS(Model->ConstBuffer.ReleaseAndGetAddressOf())
 	);
 
-	hr = Model->ConstBuffer->Map(0, nullptr, (void**)&Model->MapMatrix);
+	hr = Model->ConstBuffer.Get()->Map(0, nullptr, (void**)&Model->MapMatrix);
 
 	Model->MapMatrix->world = WorldMatrix;
 	Model->MapMatrix->view = viewMat;
@@ -209,8 +209,8 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 HRESULT Object3D::SettingConstBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model)
 {
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
-	cbvd.BufferLocation = Model->ConstBuffer->GetGPUVirtualAddress();
-	cbvd.SizeInBytes = static_cast<UINT>(Model->ConstBuffer->GetDesc().Width);
+	cbvd.BufferLocation = Model->ConstBuffer.Get()->GetGPUVirtualAddress();
+	cbvd.SizeInBytes = static_cast<UINT>(Model->ConstBuffer.Get()->GetDesc().Width);
 
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, *handle);
 
@@ -226,107 +226,107 @@ HRESULT Object3D::CreateBasicDescriptorHeap(MODEL_DX12* Model)
 	dhd.NumDescriptors = 1;	// ビューは今のところ１つだけ
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
-	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(&Model->basicDescHeap));
+	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(Model->basicDescHeap.ReleaseAndGetAddressOf()));
 	return hr;
 }
 
 HRESULT Object3D::CreateTextureData(MODEL_DX12* Model)
 {
 
-	//for (TEXRGBA& rgba : g_Texture)
-	//{
-	//	rgba.R = 0;
-	//	rgba.G = 0;
-	//	rgba.B = 0;
-	//	rgba.A = 255;
-	//}
-	ScratchImage ScratchImg = {};
+	////for (TEXRGBA& rgba : g_Texture)
+	////{
+	////	rgba.R = 0;
+	////	rgba.G = 0;
+	////	rgba.B = 0;
+	////	rgba.A = 255;
+	////}
+	//ScratchImage ScratchImg = {};
 
-	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
+	//HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 
-	// WICテクスチャのロード
-	hr = LoadFromWICFile(
-		L"img/textest.png",
-		WIC_FLAGS_NONE,
-		&Model->MetaData,
-		ScratchImg
-	);
+	//// WICテクスチャのロード
+	//hr = LoadFromWICFile(
+	//	L"img/textest.png",
+	//	WIC_FLAGS_NONE,
+	//	&Model->MetaData,
+	//	ScratchImg
+	//);
 
-	// 生データ抽出
-	const Image* img = ScratchImg.GetImage(0, 0, 0);
+	//// 生データ抽出
+	//const Image* img = ScratchImg.GetImage(0, 0, 0);
 
-	// WriteToSubresourceで転送するためのヒープ設定
-	D3D12_HEAP_PROPERTIES heapprop = {};
+	//// WriteToSubresourceで転送するためのヒープ設定
+	//D3D12_HEAP_PROPERTIES heapprop = {};
 
-	// 特殊な設定なのでDEFAULTでもUPLOADでもない
-	heapprop.Type = D3D12_HEAP_TYPE_CUSTOM;
+	//// 特殊な設定なのでDEFAULTでもUPLOADでもない
+	//heapprop.Type = D3D12_HEAP_TYPE_CUSTOM;
 
-	//ライトバック
-	heapprop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+	////ライトバック
+	//heapprop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
 
-	// 転送はL0、CPU側から直接行う
-	heapprop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+	//// 転送はL0、CPU側から直接行う
+	//heapprop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 
-	// 単一アダプターのため0
-	heapprop.CreationNodeMask = 0;
-	heapprop.VisibleNodeMask = 0;
+	//// 単一アダプターのため0
+	//heapprop.CreationNodeMask = 0;
+	//heapprop.VisibleNodeMask = 0;
 
-	// リソース設定
-	D3D12_RESOURCE_DESC rd = {};
+	//// リソース設定
+	//D3D12_RESOURCE_DESC rd = {};
 
-	//RBGAフォーマット
-	//rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	//rd.Width = 256;		// テクスチャの幅
-	//rd.Height = 256;	// テクスチャの高さ
-	//rd.DepthOrArraySize = 1;	// 2Dで配列でもないので１
+	////RBGAフォーマット
+	////rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	////rd.Width = 256;		// テクスチャの幅
+	////rd.Height = 256;	// テクスチャの高さ
+	////rd.DepthOrArraySize = 1;	// 2Dで配列でもないので１
+	////rd.SampleDesc.Count = 1;	// 通常テクスチャなのでアンチエイリアシングしない
+	////rd.SampleDesc.Quality = 0;	// クオリティは最低
+	////rd.MipLevels = 1;	// 読み込んだメタデータのミップレベル参照
+	////rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;	// 2Dテクスチャ用
+	////rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;	// レイアウトは決定しない
+	////rd.Flags = D3D12_RESOURCE_FLAG_NONE;	// フラグなし
+
+	//// テクスチャフォーマット
+	//rd.Format = Model->MetaData.format;
+	//rd.Width = Model->MetaData.width;		// テクスチャの幅
+	//rd.Height = Model->MetaData.height;	// テクスチャの高さ
+	//rd.DepthOrArraySize = Model->MetaData.arraySize;	// 2Dで配列でもないので１
 	//rd.SampleDesc.Count = 1;	// 通常テクスチャなのでアンチエイリアシングしない
 	//rd.SampleDesc.Quality = 0;	// クオリティは最低
-	//rd.MipLevels = 1;	// 読み込んだメタデータのミップレベル参照
-	//rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;	// 2Dテクスチャ用
+	//rd.MipLevels = Model->MetaData.mipLevels;	// 読み込んだメタデータのミップレベル参照
+	//rd.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(Model->MetaData.dimension);	// 2Dテクスチャ用
 	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;	// レイアウトは決定しない
 	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;	// フラグなし
 
-	// テクスチャフォーマット
-	rd.Format = Model->MetaData.format;
-	rd.Width = Model->MetaData.width;		// テクスチャの幅
-	rd.Height = Model->MetaData.height;	// テクスチャの高さ
-	rd.DepthOrArraySize = Model->MetaData.arraySize;	// 2Dで配列でもないので１
-	rd.SampleDesc.Count = 1;	// 通常テクスチャなのでアンチエイリアシングしない
-	rd.SampleDesc.Quality = 0;	// クオリティは最低
-	rd.MipLevels = Model->MetaData.mipLevels;	// 読み込んだメタデータのミップレベル参照
-	rd.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(Model->MetaData.dimension);	// 2Dテクスチャ用
-	rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;	// レイアウトは決定しない
-	rd.Flags = D3D12_RESOURCE_FLAG_NONE;	// フラグなし
+	//hr = DX12Renderer::GetDevice()->CreateCommittedResource(
+	//	&heapprop,
+	//	D3D12_HEAP_FLAG_NONE,
+	//	&rd,
+	//	D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+	//	nullptr,
+	//	IID_PPV_ARGS(&Model->TextureBuffer)
+	//);
 
-	hr = DX12Renderer::GetDevice()->CreateCommittedResource(
-		&heapprop,
-		D3D12_HEAP_FLAG_NONE,
-		&rd,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-		nullptr,
-		IID_PPV_ARGS(&Model->TextureBuffer)
-	);
-
-	// RGBA
-	hr = Model->TextureBuffer->WriteToSubresource(
-		0,
-		nullptr,
-		g_Texture.data(),	// 元データアドレス
-		sizeof(TEXRGBA) * 256,	// 1ラインサイズ
-		sizeof(TEXRGBA) * g_Texture.size()
-	);
-
-
-	// テクスチャ
+	//// RGBA
 	//hr = Model->TextureBuffer->WriteToSubresource(
 	//	0,
 	//	nullptr,
-	//	img->pixels,	// 元データアドレス
-	//	img->rowPitch,	// 1ラインサイズ
-	//	img->slicePitch
+	//	g_Texture.data(),	// 元データアドレス
+	//	sizeof(TEXRGBA) * 256,	// 1ラインサイズ
+	//	sizeof(TEXRGBA) * g_Texture.size()
 	//);
 
-	return hr;
+
+	//// テクスチャ
+	////hr = Model->TextureBuffer->WriteToSubresource(
+	////	0,
+	////	nullptr,
+	////	img->pixels,	// 元データアドレス
+	////	img->rowPitch,	// 1ラインサイズ
+	////	img->slicePitch
+	////);
+
+	return S_OK;
 }
 
 ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& texPath)
@@ -395,10 +395,10 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 		&rd,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		nullptr,
-		IID_PPV_ARGS(&Model->TextureBuffer)
+		IID_PPV_ARGS(Model->TextureBuffer.ReleaseAndGetAddressOf())
 	);
 
-	hr = Model->TextureBuffer->WriteToSubresource(
+	hr = Model->TextureBuffer.Get()->WriteToSubresource(
 		0, nullptr, img->pixels, img->rowPitch, img->slicePitch
 	);
 
@@ -407,9 +407,9 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 		return nullptr;
 	}
 
-	m_resourceTable[texPath] = Model->TextureBuffer;
+	m_resourceTable[texPath] = Model->TextureBuffer.Get();
 
-	return Model->TextureBuffer;
+	return Model->TextureBuffer.Get();
 }
 
 HRESULT Object3D::CreateShaderResourceView(MODEL_DX12* Model)
@@ -422,9 +422,9 @@ HRESULT Object3D::CreateShaderResourceView(MODEL_DX12* Model)
 	srvd.Texture2D.MipLevels = 1;
 
 	DX12Renderer::GetDevice()->CreateShaderResourceView(
-		Model->TextureBuffer,
+		Model->TextureBuffer.Get(),
 		&srvd,
-		Model->basicDescHeap->GetCPUDescriptorHandleForHeapStart()
+		Model->basicDescHeap.Get()->GetCPUDescriptorHandleForHeapStart()
 	);
 
 
@@ -442,7 +442,7 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 	Model->TextureResource.resize(materialNum); // マテリアルの数分テクスチャのリソース分確保
 	Model->sphResource.resize(materialNum);	// 同様
 	Model->spaResource.resize(materialNum);
-	Model->toonRsource.resize(materialNum);
+	Model->toonResource.resize(materialNum);
 
 	// コピー
 	for (int i = 0; i < pmdMaterials.size(); ++i)
@@ -462,7 +462,7 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 		char toonFileName[16];
 		sprintf_s(toonFileName, 16,"toon%02d.bmp", pmdMaterials[i].toonIdx + 1);
 		toonFilePath += toonFileName;
-		Model->toonRsource[i] = LoadTextureFromFile(Model, toonFilePath);
+		Model->toonResource[i] = LoadTextureFromFile(Model, toonFilePath);
 
 		if (strlen(pmdMaterials[i].texFilePath) == 0)
 		{
@@ -562,19 +562,19 @@ HRESULT Object3D::CreateMaterialBuffer(MODEL_DX12* Model)
 		&rd,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&Model->MaterialBuffer)
+		IID_PPV_ARGS(Model->MaterialBuffer.ReleaseAndGetAddressOf())
 	);
 
 	char* mapMaterial = nullptr;
 
-	hr = Model->MaterialBuffer->Map(0, nullptr, (void**)&mapMaterial);
+	hr = Model->MaterialBuffer.Get()->Map(0, nullptr, (void**)&mapMaterial);
 
 	for (auto& m : Model->material)
 	{
 		*((MaterialForHlsl*)mapMaterial) = m.material;	// データコピー
 		mapMaterial += materialBufferSize;	// 次のアライメント位置まで進める
 	}
-	Model->MaterialBuffer->Unmap(0, nullptr);
+	Model->MaterialBuffer.Get()->Unmap(0, nullptr);
 
 	return hr;
 }
@@ -590,7 +590,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
 		&mat_dhd,
-		IID_PPV_ARGS(&Model->materialDescHeap)
+		IID_PPV_ARGS(Model->materialDescHeap.ReleaseAndGetAddressOf())
 	);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvd = {};
@@ -601,13 +601,13 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 
 	// ビュー作成
 	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbvd = {};
-	mat_cbvd.BufferLocation = Model->MaterialBuffer->GetGPUVirtualAddress();
+	mat_cbvd.BufferLocation = Model->MaterialBuffer.Get()->GetGPUVirtualAddress();
 	mat_cbvd.SizeInBytes = static_cast<UINT>(Model->sub.materialBufferSize);
 
 	// 先頭を記録
-	D3D12_CPU_DESCRIPTOR_HANDLE mat_dHandle = Model->materialDescHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE mat_dHandle = Model->materialDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 	UINT inc = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	for (int i = 0; i < Model->sub.materialNum; i++)
+	for (unsigned int i = 0; i < Model->sub.materialNum; i++)
 	{
 		DX12Renderer::GetDevice()->CreateConstantBufferView(
 			&mat_cbvd,
@@ -626,9 +626,9 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		}
 		else
 		{
-			srvd.Format = Model->TextureResource[i]->GetDesc().Format;
+			srvd.Format = Model->TextureResource[i].Get()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
-				Model->TextureResource[i],
+				Model->TextureResource[i].Get(),
 				&srvd,
 				mat_dHandle
 			);
@@ -646,9 +646,9 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		}
 		else
 		{
-			srvd.Format = Model->sphResource[i]->GetDesc().Format;
+			srvd.Format = Model->sphResource[i].Get()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
-				Model->sphResource[i],
+				Model->sphResource[i].Get(),
 				&srvd,
 				mat_dHandle
 			);
@@ -666,25 +666,25 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		}
 		else
 		{
-			srvd.Format = Model->spaResource[i]->GetDesc().Format;
+			srvd.Format = Model->spaResource[i].Get()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
-				Model->spaResource[i],
+				Model->spaResource[i].Get(),
 				&srvd,
 				mat_dHandle
 			);
 		}
 		mat_dHandle.ptr += inc;
 
-		if (Model->toonRsource[i] == nullptr)
+		if (Model->toonResource[i] == nullptr)
 		{
 			srvd.Format = CreateGrayGradationTexture()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(CreateGrayGradationTexture(), &srvd, mat_dHandle);
 		}
 		else
 		{
-			srvd.Format = Model->toonRsource[i]->GetDesc().Format;
+			srvd.Format = Model->toonResource[i].Get()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
-				Model->toonRsource[i],
+				Model->toonResource[i].Get(),
 				&srvd,
 				mat_dHandle
 			);
@@ -901,13 +901,13 @@ std::pair<std::string, std::string> Object3D::SplitFileName(const std::string& p
 
 void Object3D::UnInit(MODEL_DX12* Model)
 {
-	Model->VertexBuffer->Release();
-	Model->IndexBuffer->Release();
-	Model->ConstBuffer->Release();
-	Model->TextureBuffer->Release();
-	Model->MaterialBuffer->Release();
-	Model->materialDescHeap->Release();
-	Model->basicDescHeap->Release();
+	Model->VertexBuffer.ReleaseAndGetAddressOf();
+	Model->IndexBuffer.ReleaseAndGetAddressOf();
+	Model->ConstBuffer.ReleaseAndGetAddressOf();
+	Model->TextureBuffer.ReleaseAndGetAddressOf();
+	Model->MaterialBuffer.ReleaseAndGetAddressOf();
+	Model->materialDescHeap.ReleaseAndGetAddressOf();
+	Model->basicDescHeap.ReleaseAndGetAddressOf();
 }
 
 void Object3D::CreateLambdaTable()

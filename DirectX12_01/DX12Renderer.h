@@ -8,9 +8,9 @@ public:
     static void End();      // コマンドリスト等描画実行処理
 
     static void EnableDebugLayer();     // 出力にデバッグ情報を表示
-    static ComPtr<ID3D12Device> GetDevice() { return m_Device.Get(); }
-    static ComPtr<ID3D12GraphicsCommandList> GetGraphicsCommandList() { return m_GCmdList.Get(); }
-    static ComPtr<ID3D12PipelineState> GetPipelineState() { return m_PipelineState.Get(); }
+    static ID3D12Device* GetDevice() { return m_Device.Get(); }
+    static ID3D12GraphicsCommandList* GetGraphicsCommandList() { return m_GCmdList.Get(); }
+    static ID3D12PipelineState* GetPipelineState() { return m_PipelineState.Get(); }
 
     static HRESULT CreateFactory();
     static HRESULT CreateDevice();

@@ -93,22 +93,22 @@ typedef struct
 
 typedef struct
 {
-    ID3D12Resource* VertexBuffer;
-    ID3D12Resource* IndexBuffer;
-    ID3D12Resource* ConstBuffer;
-    ID3D12Resource* TextureBuffer;
-    ID3D12Resource* MaterialBuffer;
+    ComPtr<ID3D12Resource> VertexBuffer;
+    ComPtr<ID3D12Resource> IndexBuffer;
+    ComPtr<ID3D12Resource> ConstBuffer;
+    ComPtr<ID3D12Resource> TextureBuffer;
+    ComPtr<ID3D12Resource> MaterialBuffer;
 
-    std::vector<ID3D12Resource*> TextureResource;
-    std::vector<ID3D12Resource*> sphResource;
-    std::vector<ID3D12Resource*> spaResource;
-    std::vector<ID3D12Resource*> toonRsource;
+    std::vector<ComPtr<ID3D12Resource>> TextureResource;
+    std::vector<ComPtr<ID3D12Resource>> sphResource;
+    std::vector<ComPtr<ID3D12Resource>> spaResource;
+    std::vector<ComPtr<ID3D12Resource>> toonResource;
 
     D3D12_VERTEX_BUFFER_VIEW vbView;  // 頂点バッファービュー
     D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー
 
-    ID3D12DescriptorHeap* materialDescHeap;
-    ID3D12DescriptorHeap* basicDescHeap;
+    ComPtr<ID3D12DescriptorHeap> materialDescHeap;
+    ComPtr<ID3D12DescriptorHeap> basicDescHeap;
 
     TexMetadata MetaData;
     SCENEMATRIX* MapMatrix;
