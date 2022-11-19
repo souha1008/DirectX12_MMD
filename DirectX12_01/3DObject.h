@@ -85,9 +85,9 @@ typedef struct
 
 typedef struct
 {
-    XMMATRIX world; // モデル本体を回転させたり移動させたりする
-    XMMATRIX view;
-    XMMATRIX proj;
+    XMFLOAT4X4 world; // モデル本体を回転させたり移動させたりする
+    XMFLOAT4X4 view;
+    XMFLOAT4X4 proj;
     XMFLOAT3 eye;   // 視線座標
 }SCENEMATRIX;
 

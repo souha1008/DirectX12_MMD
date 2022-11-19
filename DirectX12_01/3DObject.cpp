@@ -168,7 +168,7 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 	XMMATRIX viewMat;
 	XMMATRIX projMat;
 
-	viewMat = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up));
+	viewMat  = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up));
 	projMat = XMMatrixPerspectiveFovLH(XM_PIDIV4,//âÊäpÇÕ90Åã
 		static_cast<float>(SCREEN_WIDTH) / static_cast<float>(SCREEN_HEIGHT),//ÉAÉXî‰
 		1.0f,//ãﬂÇ¢ï˚
@@ -197,11 +197,10 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 
 	hr = Model->ConstBuffer.Get()->Map(0, nullptr, (void**)&Model->MapMatrix);
 
-	Model->MapMatrix->world = WorldMatrix;
-	Model->MapMatrix->view = viewMat;
-	Model->MapMatrix->proj = projMat;
+	XMStoreFloat4x4(&Model->MapMatrix->world, WorldMatrix);
+	XMStoreFloat4x4(&Model->MapMatrix->view, viewMat);
+	XMStoreFloat4x4(&Model->MapMatrix->proj, projMat);
 	Model->MapMatrix->eye = eye;
-	//XMStoreFloat4x4(&Model->MapMatrix->viewproj, viewMat * projMat);
 
 	return hr;
 }
