@@ -22,8 +22,8 @@ D3D12_RESOURCE_BARRIER DX12Renderer::m_Barrier = {};
 std::vector<ID3D12Resource*> DX12Renderer::m_BackBuffers;
 
 // グローバル変数
-D3D12_VIEWPORT g_Viewport = {};
-D3D12_RECT g_Scissorect = {};
+CD3DX12_VIEWPORT g_Viewport = {};
+CD3DX12_RECT g_Scissorect = {};
 
 void DX12Renderer::Init()
 {
@@ -58,18 +58,21 @@ void DX12Renderer::Init()
 	hr = CreatePipelineState();
 
 	// ビューポート
-	g_Viewport.Width = SCREEN_WIDTH;		//出力先の幅(ピクセル数)
-	g_Viewport.Height = SCREEN_HEIGHT;		//出力先の高さ(ピクセル数)
-	g_Viewport.TopLeftX = 0;				//出力先の左上座標X
-	g_Viewport.TopLeftY = 0;				//出力先の左上座標Y
-	g_Viewport.MaxDepth = 1.0f;				//深度最大値
-	g_Viewport.MinDepth = 0.0f;				//深度最小値
+	g_Viewport = CD3DX12_VIEWPORT(m_BackBuffers[0]);	// バックバッファーから自動計算
+
+	//g_Viewport.Width = SCREEN_WIDTH;		//出力先の幅(ピクセル数)
+	//g_Viewport.Height = SCREEN_HEIGHT;		//出力先の高さ(ピクセル数)
+	//g_Viewport.TopLeftX = 0;				//出力先の左上座標X
+	//g_Viewport.TopLeftY = 0;				//出力先の左上座標Y
+	//g_Viewport.MaxDepth = 1.0f;				//深度最大値
+	//g_Viewport.MinDepth = 0.0f;				//深度最小値
 
 	// 切り抜き
-	g_Scissorect.top = 0;
-	g_Scissorect.bottom = g_Scissorect.top + SCREEN_HEIGHT;
-	g_Scissorect.left = 0;
-	g_Scissorect.right = g_Scissorect.left + SCREEN_WIDTH;
+	g_Scissorect = CD3DX12_RECT(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+	//g_Scissorect.top = 0;
+	//g_Scissorect.bottom = g_Scissorect.top + SCREEN_HEIGHT;
+	//g_Scissorect.left = 0;
+	//g_Scissorect.right = g_Scissorect.left + SCREEN_WIDTH;
 
 }
 
@@ -423,56 +426,62 @@ HRESULT DX12Renderer::CreateRootSignature()
 
 	// ディスクリプタレンジテーブル作成
 	// 定数用一つ目（座標変換用）
-	D3D12_DESCRIPTOR_RANGE dr[3] = {};
-	dr[0].NumDescriptors = 1;
-	dr[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	dr[0].BaseShaderRegister = 0;
-	dr[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	CD3DX12_DESCRIPTOR_RANGE dr[3] = {};
+	dr->Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);	// RangeType, NumDescriptor, BaseShaderRegister
+	
+	//dr[0].NumDescriptors = 1;
+	//dr[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	//dr[0].BaseShaderRegister = 0;
+	//dr[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
 
 	// 定数二つ目（マテリアル用）
-	dr[1].NumDescriptors = 1;
-	dr[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	dr[1].BaseShaderRegister = 1;
-	dr[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	dr[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+	//dr[1].NumDescriptors = 1;
+	//dr[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	//dr[1].BaseShaderRegister = 1;
+	//dr[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// テクスチャ一つ目（マテリアルとペア）
-	dr[2].NumDescriptors = 5;	// テクスチャとsphとsphとトゥーン
-	dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	dr[2].BaseShaderRegister = 0;
-	dr[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	dr[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
+	//dr[2].NumDescriptors = 5;	// テクスチャとsphとspaとトゥーン
+	//dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	//dr[2].BaseShaderRegister = 0;
+	//dr[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// ルートパラメータ作成
-	D3D12_ROOT_PARAMETER rootparam[2] = {};
-	rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;	// ピクセルシェーダーから見える
-	rootparam[0].DescriptorTable.pDescriptorRanges = &dr[0];	// ディスクリプタレンジのアドレス
-	rootparam[0].DescriptorTable.NumDescriptorRanges = 1;	// ディスクリプタレンジ数
+	CD3DX12_ROOT_PARAMETER rootparam[2] = {};
+	rootparam[0].InitAsDescriptorTable(1, &dr[0]);	// パラメータータイプはデスクリプターテーブルで、レンジ数は1、レンジのアドレス
+	
+	//rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	//rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;	// ピクセルシェーダーから見える
+	//rootparam[0].DescriptorTable.pDescriptorRanges = &dr[0];	// ディスクリプタレンジのアドレス
+	//rootparam[0].DescriptorTable.NumDescriptorRanges = 1;	// ディスクリプタレンジ数
 
 	// テクスチャ
-	rootparam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootparam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// 頂点シェーダーから見える
-	rootparam[1].DescriptorTable.pDescriptorRanges = &dr[1];	// ディスクリプタレンジのアドレス
-	rootparam[1].DescriptorTable.NumDescriptorRanges = 2;	// ディスクリプタレンジ数
+	rootparam[1].InitAsDescriptorTable(2, &dr[1]);
+	//rootparam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	//rootparam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// 頂点シェーダーから見える
+	//rootparam[1].DescriptorTable.pDescriptorRanges = &dr[1];	// ディスクリプタレンジのアドレス
+	//rootparam[1].DescriptorTable.NumDescriptorRanges = 2;	// ディスクリプタレンジ数
 	
-	D3D12_STATIC_SAMPLER_DESC sd[2] = {};
+	CD3DX12_STATIC_SAMPLER_DESC sd[2] = {};
 
-	sd[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 横方向の繰り返し
-	sd[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 縦方向の繰り返し
-	sd[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 奥行きの繰り返し
-	sd[0].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;	// ボーダーは黒
-	sd[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;	// 線形補間
-	sd[0].MaxLOD = D3D12_FLOAT32_MAX;	// ミップマップ最大値
-	sd[0].MinLOD = 0.0f;	// ミップマップ最小値
-	sd[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーから見える
-	sd[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;	// リサンプリングしない
-	sd[0].ShaderRegister = 0;
+	sd[0].Init(0);	// シェーダーレジスターは0番
 
-	sd[1] = sd[0];
-	sd[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;	// 繰り返さない
-	sd[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sd[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	sd[1].ShaderRegister = 1;
+	//sd[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 横方向の繰り返し
+	//sd[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 縦方向の繰り返し
+	//sd[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 奥行きの繰り返し
+	//sd[0].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;	// ボーダーは黒
+	//sd[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;	// 線形補間
+	//sd[0].MaxLOD = D3D12_FLOAT32_MAX;	// ミップマップ最大値
+	//sd[0].MinLOD = 0.0f;	// ミップマップ最小値
+	//sd[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーから見える
+	//sd[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;	// リサンプリングしない
+	//sd[0].ShaderRegister = 0;
 
+	sd[1].Init(1, D3D12_FILTER_ANISOTROPIC, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP);	// シェーダーレジスターは1番、UVはクランプ
+	
 	// ルートシグネチャー作成
 	D3D12_ROOT_SIGNATURE_DESC rsd = {};
 	rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
