@@ -7,11 +7,13 @@ using namespace DirectX;
 // テクスチャ情報
 std::vector<TEXRGBA> g_Texture(256 * 256);
 
-// ロード用ラムダ式
-using LoadLambda_t = std::function<HRESULT(const std::wstring& path, TexMetadata*, ScratchImage&)>;
 
 HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 {
+	// ラムダ式初期化
+	CreateLambdaTable();
+
+	// pmdファイル読み込み
 	PMDHeader pmdheader;
 
 	char signature[3] = {};	// シグネチャ
@@ -329,17 +331,23 @@ HRESULT Object3D::CreateTextureData(MODEL_DX12* Model)
 
 ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& texPath)
 {
+	auto it = m_resourceTable.find(texPath);
+	if (it != m_resourceTable.end())
+	{
+		// テーブル内にあったらロードするのではなくマップ内のリソースを返す
+		return m_resourceTable[texPath];
+	}
+
+
 	TexMetadata metadata = {};
 	ScratchImage scratchImg = {};
 	
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 
-	hr = LoadFromWICFile(
-		GetWideStringFromString(texPath).c_str(),
-		WIC_FLAGS_NONE,
-		&metadata,
-		scratchImg
-	);
+	auto wtexpath = GetWideStringFromString(texPath); // テクスチャファイルのパス
+	auto ext = GetExtension(texPath);	// 拡張子を取得
+
+	hr = m_loadLambdaTable[ext](wtexpath, &metadata, scratchImg);
 
 	if (FAILED(hr))
 	{
@@ -387,6 +395,8 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 		return nullptr;
 	}
 
+	m_resourceTable[texPath] = Model->TextureBuffer;
+
 	return Model->TextureBuffer;
 }
 
@@ -420,6 +430,7 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 	Model->TextureResource.resize(materialNum); // マテリアルの数分テクスチャのリソース分確保
 	Model->sphResource.resize(materialNum);	// 同様
 	Model->spaResource.resize(materialNum);
+	Model->toonRsource.resize(materialNum);
 
 	// コピー
 	for (int i = 0; i < pmdMaterials.size(); ++i)
@@ -434,6 +445,13 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 	}
 	for (int i = 0; i < pmdMaterials.size(); ++i)
 	{
+		// トゥーンリソース読み込み
+		std::string toonFilePath = "Assets/Texture/Toon/";
+		char toonFileName[16];
+		sprintf_s(toonFileName, 16,"toon%02d.bmp", pmdMaterials[i].toonIdx + 1);
+		toonFilePath += toonFileName;
+		Model->toonRsource[i] = LoadTextureFromFile(Model, toonFilePath);
+
 		if (strlen(pmdMaterials[i].texFilePath) == 0)
 		{
 			Model->TextureResource[i] = nullptr;
@@ -555,7 +573,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	D3D12_DESCRIPTOR_HEAP_DESC mat_dhd = {};
 	mat_dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	mat_dhd.NodeMask = 0;
-	mat_dhd.NumDescriptors = Model->sub.materialNum * 4;	// マテリアル数分（スフィアマテリアル追加）
+	mat_dhd.NumDescriptors = Model->sub.materialNum * 5;	// マテリアル数分（スフィアマテリアル追加）
 	mat_dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
@@ -608,7 +626,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		// 拡張子がsphだったとき、sphResourceにポインタを入れる
 		if (Model->sphResource[i] == nullptr)
 		{
-			srvd.Format = srvd.Format = CreateWhiteTexture()->GetDesc().Format;
+			srvd.Format = CreateWhiteTexture()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
 				CreateWhiteTexture(),
 				&srvd,
@@ -628,7 +646,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		// 拡張子がspaだったとき、sphResourceにポインタを入れる
 		if (Model->spaResource[i] == nullptr)
 		{
-			srvd.Format = srvd.Format = CreateBlackTexture()->GetDesc().Format;
+			srvd.Format = CreateBlackTexture()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
 				CreateBlackTexture(),
 				&srvd,
@@ -639,6 +657,22 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 			srvd.Format = Model->spaResource[i]->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
 				Model->spaResource[i],
+				&srvd,
+				mat_dHandle
+			);
+		}
+		mat_dHandle.ptr += inc;
+
+		if (Model->toonRsource[i] == nullptr)
+		{
+			srvd.Format = CreateGrayGradationTexture()->GetDesc().Format;
+			DX12Renderer::GetDevice()->CreateShaderResourceView(CreateGrayGradationTexture(), &srvd, mat_dHandle);
+		}
+		else
+		{
+			srvd.Format = Model->toonRsource[i]->GetDesc().Format;
+			DX12Renderer::GetDevice()->CreateShaderResourceView(
+				Model->toonRsource[i],
 				&srvd,
 				mat_dHandle
 			);
@@ -790,6 +824,44 @@ ID3D12Resource* Object3D::CreateBlackTexture()
 	return blackBuff;
 }
 
+ID3D12Resource* Object3D::CreateGrayGradationTexture()
+{
+	D3D12_RESOURCE_DESC rd = {};
+	rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	rd.Width = 4;
+	rd.Height = 256;
+	rd.DepthOrArraySize = 1;
+	rd.SampleDesc.Count = 1;
+	rd.SampleDesc.Quality = 0;
+	rd.MipLevels = 1;
+	rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	rd.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	// 上が白くて下が黒いテクスチャ作成
+	std::vector<unsigned int> data(4 * 256);
+	auto it = data.begin();
+	unsigned int c = 0xff;
+	for (; it != data.end(); it += 4)
+	{
+		auto col = (c << 0xff) | (c << 16) | (c << 80) | c;
+		std::fill(it, it + 4, col);
+		--c;
+	}
+
+	ID3D12Resource* gradBuff = nullptr;
+
+	HRESULT hr = gradBuff->WriteToSubresource(
+		0,
+		nullptr,
+		data.data(),
+		4 * sizeof(unsigned int),
+		sizeof(unsigned int) * data.size()
+	);
+
+	return gradBuff;
+}
+
 std::string Object3D::GetExtension(const std::string& path)
 {
 	int ind = path.rfind('.');
@@ -818,4 +890,34 @@ void Object3D::UnInit(MODEL_DX12* Model)
 	Model->basicDescHeap->Release();
 }
 
+void Object3D::CreateLambdaTable()
+{
+	// WIC系
+	m_loadLambdaTable["sph"]
+		= m_loadLambdaTable["spa"]
+		= m_loadLambdaTable["bmp"]
+		= m_loadLambdaTable["png"]
+		= m_loadLambdaTable["jpg"]
+		= [](const std::wstring& path,
+			TexMetadata* meta,
+			ScratchImage& img)-> HRESULT
+	{
+		return LoadFromWICFile(path.c_str(), WIC_FLAGS_NONE, meta, img);
+	};
 
+	m_loadLambdaTable["tga"] = [](
+		const std::wstring& path,
+		TexMetadata* meta,
+		ScratchImage& img)-> HRESULT
+	{
+		return LoadFromTGAFile(path.c_str(), meta, img);
+	};
+
+	m_loadLambdaTable["dds"] = [](
+		const std::wstring& path,
+		TexMetadata* meta,
+		ScratchImage& img)-> HRESULT
+	{
+		return LoadFromDDSFile(path.c_str(), DDS_FLAGS_NONE,meta, img);
+	};
+}
