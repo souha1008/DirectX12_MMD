@@ -421,7 +421,7 @@ HRESULT DX12Renderer::CreateRootSignature()
 	dr[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// テクスチャ一つ目（マテリアルとペア）
-	dr[2].NumDescriptors = 4;	// テクスチャとsphとsph
+	dr[2].NumDescriptors = 5;	// テクスチャとsphとsphとトゥーン
 	dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	dr[2].BaseShaderRegister = 0;
 	dr[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -439,26 +439,32 @@ HRESULT DX12Renderer::CreateRootSignature()
 	rootparam[1].DescriptorTable.pDescriptorRanges = &dr[1];	// ディスクリプタレンジのアドレス
 	rootparam[1].DescriptorTable.NumDescriptorRanges = 2;	// ディスクリプタレンジ数
 	
-	D3D12_STATIC_SAMPLER_DESC sd = {};
+	D3D12_STATIC_SAMPLER_DESC sd[2] = {};
 
-	sd.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 横方向の繰り返し
-	sd.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 縦方向の繰り返し
-	sd.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 奥行きの繰り返し
-	sd.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;	// ボーダーは黒
-	sd.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;	// 線形補間
-	sd.MaxLOD = D3D12_FLOAT32_MAX;	// ミップマップ最大値
-	sd.MinLOD = 0.0f;	// ミップマップ最小値
-	sd.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーから見える
-	sd.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;	// リサンプリングしない
-	sd.ShaderRegister = 0;
+	sd[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 横方向の繰り返し
+	sd[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 縦方向の繰り返し
+	sd[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 奥行きの繰り返し
+	sd[0].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;	// ボーダーは黒
+	sd[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;	// 線形補間
+	sd[0].MaxLOD = D3D12_FLOAT32_MAX;	// ミップマップ最大値
+	sd[0].MinLOD = 0.0f;	// ミップマップ最小値
+	sd[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーから見える
+	sd[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;	// リサンプリングしない
+	sd[0].ShaderRegister = 0;
+
+	sd[1] = sd[0];
+	sd[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;	// 繰り返さない
+	sd[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sd[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	sd[1].ShaderRegister = 1;
 
 	// ルートシグネチャー作成
 	D3D12_ROOT_SIGNATURE_DESC rsd = {};
 	rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rsd.pParameters = &rootparam[0];	// ルートパラメータの先頭アドレス
 	rsd.NumParameters = 2;			// ルートパラメータ数
-	rsd.pStaticSamplers = &sd;		// サンプラーステートの先頭アドレス
-	rsd.NumStaticSamplers = 1;		// サンプラーステート数
+	rsd.pStaticSamplers = sd;		// サンプラーステートの先頭アドレス
+	rsd.NumStaticSamplers = 2;		// サンプラーステート数
 
 	ID3DBlob* RootSigBlob = nullptr;
 	hr = D3D12SerializeRootSignature(&rsd, D3D_ROOT_SIGNATURE_VERSION_1_0, &RootSigBlob, &m_ErrorBlob);

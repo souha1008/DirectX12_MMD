@@ -81,7 +81,7 @@ void Polygon2D::Init()
 
 	g_Object = new Object3D();
 
-	HRESULT hr = g_Object->CreateModel("Model/初音ミクmetal.pmd", &m_Model);
+	HRESULT hr = g_Object->CreateModel("Assets/Model/初音ミク.pmd", &m_Model);
 
 	if (FAILED(hr))
 	{
@@ -126,7 +126,7 @@ void Polygon2D::Draw()
 	unsigned int idxOffset = 0;
 
 	// CBVとSRVとSRVとSRVで1マテリアルを描画するのでインクリメントサイズを４倍にする
-	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 4;
+	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
 
 	for (auto& m : m_Model.material)
 	{

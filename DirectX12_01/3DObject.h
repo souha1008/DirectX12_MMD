@@ -1,6 +1,9 @@
 #pragma once
 
 using namespace DirectX;
+// ロード用ラムダ式
+using LoadLambda_t = std::function<HRESULT(const std::wstring& path, TexMetadata*, ScratchImage&)>;
+
 
 typedef struct
 {
@@ -99,6 +102,7 @@ typedef struct
     std::vector<ID3D12Resource*> TextureResource;
     std::vector<ID3D12Resource*> sphResource;
     std::vector<ID3D12Resource*> spaResource;
+    std::vector<ID3D12Resource*> toonRsource;
 
     D3D12_VERTEX_BUFFER_VIEW vbView;  // 頂点バッファービュー
     D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー
@@ -146,9 +150,19 @@ public:
     
     ID3D12Resource* CreateWhiteTexture();
     ID3D12Resource* CreateBlackTexture();
+    ID3D12Resource* CreateGrayGradationTexture();
+
+    void CreateLambdaTable();
 
 
     void UnInit(MODEL_DX12* Model);
+
+private:
+    // ロード用ラムダ
+    std::map<std::string, LoadLambda_t> m_loadLambdaTable;
+
+    // リソース用
+    std::map<std::string, ID3D12Resource*> m_resourceTable;
 
 };
 
