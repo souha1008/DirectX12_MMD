@@ -7,6 +7,7 @@ SamplerState smpToon : register(s1);    // 1番スロットに設定された(トゥーン)
 
 cbuffer SceneBuffer : register(b0)   // 定数バッファー
 {
+    //matrix world;
     matrix view;    // ビュー
     matrix proj;    // プロジェクション
     float3 eye; // 視線
@@ -16,7 +17,7 @@ cbuffer Transform : register(b1)
 {
     matrix world;   // ワールド変換行列
     //matrix bones[256];  // ボーン行列
-}
+};
 
 cbuffer Material : register(b2)
 {

@@ -13,7 +13,7 @@ float4 BasicPS(OUTPUT input) : SV_TARGET
 
 	// 光の反射ベクトル
 	float3 refLight = normalize(reflect(light, input.normal.xyz));
-	float specularB = pow(saturate(dot(refLight, -input.ray)), specular.a);
+	float specularB = pow(saturate(dot(refLight, -input.ray)), specular.a + 800);
 
 	// スフィアマップ用uv
 	float2 sphereMapUV = input.vnormal.xy;
@@ -27,7 +27,7 @@ float4 BasicPS(OUTPUT input) : SV_TARGET
 		* Texcolor	// テクスチャカラー
 		* sph.Sample(smp, sphereMapUV))	// スフィアマップ（乗算）
 		+ saturate(spa.Sample(smp, sphereMapUV) * Texcolor	// スフィアマップ(加算)
-		/* + float4(specularB * specular.rgb, 1)*/)	// スペキュラ
+		+ float4(specularB * float3(1, 1, 1) , 1))	// スペキュラ
 		, float4(Texcolor * ambient, 1));		// アンビエント
 
 	//return float4(diffuseB, diffuseB, diffuseB, 1)

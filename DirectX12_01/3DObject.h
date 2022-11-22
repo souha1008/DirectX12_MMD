@@ -96,11 +96,15 @@ typedef struct
 
 typedef struct
 {
-    XMFLOAT4X4 world; // モデル本体を回転させたり移動させたりする
     XMFLOAT4X4 view;
     XMFLOAT4X4 proj;
     XMFLOAT3 eye;   // 視線座標
 }SCENEMATRIX;
+
+typedef struct
+{
+    XMFLOAT4X4 world; // モデル本体を回転させたり移動させたりする
+}TRANSFORM;
 
 struct BoneNode
 {
@@ -116,7 +120,8 @@ typedef struct
 {
     ComPtr<ID3D12Resource> VertexBuffer;
     ComPtr<ID3D12Resource> IndexBuffer;
-    ComPtr<ID3D12Resource> ConstBuffer;
+    ComPtr<ID3D12Resource> SceneConstBuffer;
+    ComPtr<ID3D12Resource> TransfromConstBuffer;
     ComPtr<ID3D12Resource> TextureBuffer;
     ComPtr<ID3D12Resource> MaterialBuffer;
 
@@ -131,10 +136,12 @@ typedef struct
     D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー
 
     ComPtr<ID3D12DescriptorHeap> materialDescHeap;
-    ComPtr<ID3D12DescriptorHeap> basicDescHeap;
+    ComPtr<ID3D12DescriptorHeap> sceneDescHeap;
+    ComPtr<ID3D12DescriptorHeap> transformDescHeap;
 
     TexMetadata MetaData;
-    SCENEMATRIX* MapMatrix;
+    SCENEMATRIX* SceneMatrix;
+    TRANSFORM* TransformMatrix;
 
     std::vector<MATERIAL> material;
     SUBSET sub;
@@ -155,9 +162,13 @@ public:
     HRESULT CreateIndexBuffer(MODEL_DX12* Model, std::vector<unsigned short> index);
     HRESULT SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned short> index);
 
-    // 定数バッファ生成
-    HRESULT CreateConstBuffer(MODEL_DX12* Model);
-    HRESULT SettingConstBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model);
+    // カメラ用定数バッファ生成
+    HRESULT CreateSceneCBuffer(MODEL_DX12* Model);
+    HRESULT SettingSceneCBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model);
+
+    // オブジェクト用定数バッファ生成
+    HRESULT CreateTransformCBuffer(MODEL_DX12* Model);
+    HRESULT SettingTransformCBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model);
 
     // ディスクリプタヒープ生成
     HRESULT CreateBasicDescriptorHeap(MODEL_DX12* Model);

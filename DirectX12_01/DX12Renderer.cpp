@@ -585,7 +585,7 @@ HRESULT DX12Renderer::CreatePipelineState()
 
 	// グラフィックパイプラインステート作成
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsd = {};
-	gpsd.pRootSignature = nullptr;
+	gpsd.pRootSignature = m_RootSignature.Get();
 	//gpsd.VS.pShaderBytecode = m_VSBlob->GetBufferPointer();
 	//gpsd.VS.BytecodeLength = m_VSBlob->GetBufferSize();
 	//gpsd.PS.pShaderBytecode = m_PSBlob->GetBufferPointer();
@@ -649,7 +649,6 @@ HRESULT DX12Renderer::CreatePipelineState()
 
 	gpsd.SampleDesc.Count = 1;//サンプリングは1ピクセルにつき１
 	gpsd.SampleDesc.Quality = 0;//クオリティは最低
-	gpsd.pRootSignature = m_RootSignature.Get();
 
 	hr = m_Device->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_PipelineState.ReleaseAndGetAddressOf()));
 

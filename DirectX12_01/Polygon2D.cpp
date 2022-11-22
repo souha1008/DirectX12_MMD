@@ -98,7 +98,7 @@ void Polygon2D::Uninit()
 
 void Polygon2D::Update()
 {
-	//PolygonRotation();
+	PolygonRotation();
 
 	//PolygonMove();
 }
@@ -114,11 +114,15 @@ void Polygon2D::Draw()
 	// インデックスバッファービューセット
 	DX12Renderer::GetGraphicsCommandList()->IASetIndexBuffer(&m_Model.ibView);
 
-	// テクスチャーのデスクリプターヒープセット
-	ID3D12DescriptorHeap* bdh[] = { m_Model.basicDescHeap.Get() };
-	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, bdh);
+	// 視点のデスクリプターヒープセット
+	ID3D12DescriptorHeap* scene_dh[] = { m_Model.sceneDescHeap.Get() };
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, scene_dh);
 	// ルートパラメータとディスクリプターヒープの関連付け
-	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, m_Model.basicDescHeap.Get()->GetGPUDescriptorHandleForHeapStart());
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, m_Model.sceneDescHeap.Get()->GetGPUDescriptorHandleForHeapStart());
+
+	ID3D12DescriptorHeap* trans_dh[] = { m_Model.transformDescHeap.Get() };
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, trans_dh);
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(1, m_Model.transformDescHeap.Get()->GetGPUDescriptorHandleForHeapStart());
 
 	// マテリアルのディスクリプタヒープセット
 	ID3D12DescriptorHeap* mdh[] = { m_Model.materialDescHeap.Get() };
@@ -219,7 +223,7 @@ HRESULT Polygon2D::SettingIndexBufferView(unsigned short* index)
 	return S_OK;
 }
 
-HRESULT Polygon2D::CreateConstBuffer()
+HRESULT Polygon2D::CreateSceneCBuffer()
 {
 	m_WorldMatrix = XMMatrixRotationY(XM_PIDIV4);
 
@@ -388,7 +392,8 @@ HRESULT Polygon2D::CreateShaderResourceView()
 void Polygon2D::PolygonRotation()
 {
 	g_angle += 0.01f;
-	//XMStoreFloat4x4(&m_Model.MapMatrix->world, XMMatrixRotationY(g_angle));
+	//XMStoreFloat4x4(&m_Model.SceneMatrix->world, XMMatrixRotationY(g_angle));
+	//XMStoreFloat4x4(&m_Model.MapMatrix->view)
 	//m_Model.MapMatrix->viewproj = m_Model.viewMat * m_Model.projMat;
 }
 

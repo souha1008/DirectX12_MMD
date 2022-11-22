@@ -44,7 +44,7 @@ public:
     HRESULT CreateIndexBuffer(unsigned short* index);
     HRESULT SettingIndexBufferView(unsigned short* index);
 
-    HRESULT CreateConstBuffer();
+    HRESULT CreateSceneCBuffer();
     HRESULT SettingConstBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle);
 
     HRESULT CreateBasicDescriptorHeap();
