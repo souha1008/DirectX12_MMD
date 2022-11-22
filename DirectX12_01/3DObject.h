@@ -55,6 +55,17 @@ typedef struct
 }PMDMaterial;   // パディングが発生しないため70バイト
 #pragma pack()  // パッキング指定を解除
 
+#pragma pack(1)
+typedef struct
+{
+    char boneName[20];          // ボーン名
+    unsigned short parentNo;    // 親ボーン番号
+    unsigned short nextNo;      // 先端のボーン番号
+    unsigned char type;         // ボーン種別
+    unsigned short  ikBoneNo;   // IKボーン番号
+    XMFLOAT3 pos;               // ボーンの基準点座標
+}PMDBone;
+
 // シェーダーに転送するデータ
 typedef struct
 {
@@ -91,6 +102,16 @@ typedef struct
     XMFLOAT3 eye;   // 視線座標
 }SCENEMATRIX;
 
+struct BoneNode
+{
+    int boneIdx;    // ボーンインデックス
+    XMFLOAT3 startPos;  // ボーン基準点（回転の中心）
+    XMFLOAT3 endPos;    // ボーン先端店（実際のスキニングには利用しない）
+    std::vector<BoneNode*>  children;   // 子ノード
+};
+
+
+
 typedef struct
 {
     ComPtr<ID3D12Resource> VertexBuffer;
@@ -103,6 +124,8 @@ typedef struct
     std::vector<ComPtr<ID3D12Resource>> sphResource;
     std::vector<ComPtr<ID3D12Resource>> spaResource;
     std::vector<ComPtr<ID3D12Resource>> toonResource;
+
+    std::vector<XMMATRIX> BoneMatrix;
 
     D3D12_VERTEX_BUFFER_VIEW vbView;  // 頂点バッファービュー
     D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー
@@ -121,27 +144,39 @@ typedef struct
 class Object3D
 {
 public:
+    // モデル生成（全部入り）
     HRESULT CreateModel(const char* Filename, MODEL_DX12* Model);
 
+    // バーテックスバッファ生成
     HRESULT CreateVertexBuffer(MODEL_DX12* Model, std::vector<PMDVertex> vertices);
     HRESULT SettingVertexBufferView(MODEL_DX12* Model, std::vector<PMDVertex> vertices, size_t pmdVertex_size);
 
+    // インデックスバッファ生成
     HRESULT CreateIndexBuffer(MODEL_DX12* Model, std::vector<unsigned short> index);
     HRESULT SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned short> index);
 
+    // 定数バッファ生成
     HRESULT CreateConstBuffer(MODEL_DX12* Model);
     HRESULT SettingConstBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model);
 
+    // ディスクリプタヒープ生成
     HRESULT CreateBasicDescriptorHeap(MODEL_DX12* Model);
 
+    // テクスチャデータ生成
     HRESULT CreateTextureData(MODEL_DX12* Model);
+    // テクスチャデータロード
     ID3D12Resource* LoadTextureFromFile(MODEL_DX12* Model, std::string& texPath);
 
+    // シェーダーリソースビュー生成
     HRESULT CreateShaderResourceView(MODEL_DX12* Model);
 
+    // マテリアル生成
     HRESULT LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelPath);
     HRESULT CreateMaterialBuffer(MODEL_DX12* Model);
     HRESULT CreateMaterialView(MODEL_DX12* Model);
+
+    // ボーン生成
+    HRESULT CreateBone(FILE* file, MODEL_DX12* Model);
 
     std::string GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath);
     std::wstring GetWideStringFromString(const std::string& str);
@@ -163,6 +198,9 @@ private:
 
     // リソース用
     std::map<std::string, ID3D12Resource*> m_resourceTable;
+
+    // ボーン検索
+    std::map<std::string, BoneNode> m_BoneNodeTable;
 
 };
 

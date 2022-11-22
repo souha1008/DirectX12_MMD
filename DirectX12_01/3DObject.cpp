@@ -23,7 +23,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	fread(&pmdheader, sizeof(pmdheader), 1, fp);
 
 	// 頂点読み込み
-	unsigned int vertNum;	// 頂点数
+	unsigned int vertNum = 0;	// 頂点数
 	fread(&vertNum, sizeof(vertNum), 1, fp);
 
 	constexpr size_t pmdVertex_size = 38;	// 1頂点あたりのサイズ
@@ -35,13 +35,12 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	Model->sub.vertNum = vertNum;
 
 	// インデックスバッファー読み込み
-	unsigned int indicesNum;
+	unsigned int indicesNum = 0;
 	fread(&indicesNum, sizeof(indicesNum), 1, fp);
 	std::vector<unsigned short> indices(indicesNum);
 	fread(indices.data(), indices.size() * sizeof(indices[0]), 1, fp);
 
 	Model->sub.indecesNum = indicesNum;
-
 
 
 	// 頂点バッファー作成
@@ -61,6 +60,9 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 
 	// テクスチャデータセット
 	//hr = CreateTextureData(Model);
+	
+	// ボーンの読み込み
+	hr = CreateBone(fp, Model);
 
 	// 定数バッファー生成
 	hr = CreateConstBuffer(Model);
@@ -907,6 +909,46 @@ void Object3D::UnInit(MODEL_DX12* Model)
 	Model->MaterialBuffer.ReleaseAndGetAddressOf();
 	Model->materialDescHeap.ReleaseAndGetAddressOf();
 	Model->basicDescHeap.ReleaseAndGetAddressOf();
+}
+
+HRESULT Object3D::CreateBone(FILE* file, MODEL_DX12* Model)
+{
+	unsigned short boneNum = 0;
+	fread(&boneNum, sizeof(boneNum), 1, file);
+
+	std::vector<PMDBone> pmdBone(boneNum);
+	fread(pmdBone.data(), sizeof(PMDBone), boneNum, file);
+
+	std::vector<std::string> boneNames(pmdBone.size());
+
+	// ボーンノードマップを作成
+	for (int index = 0; index < pmdBone.size(); ++index)
+	{
+		auto& pmdbones = pmdBone[index];
+		boneNames[index] = pmdbones.boneName;
+		auto& node = m_BoneNodeTable[pmdbones.boneName];
+		node.boneIdx = index;
+		node.startPos = pmdbones.pos;
+	}
+
+	// 親子関係を構築
+	for (auto& pmdbones : pmdBone)
+	{
+		// 親インデックスをチェック
+		if (pmdbones.parentNo >= pmdBone.size())
+		{
+			continue;
+		}
+
+		auto parentName = boneNames[pmdbones.parentNo];
+		m_BoneNodeTable[parentName].children.emplace_back(&m_BoneNodeTable[pmdbones.boneName]);
+	}
+
+	Model->BoneMatrix.resize(pmdBone.size());
+
+	std::fill(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), XMMatrixIdentity());
+
+	return S_OK;
 }
 
 void Object3D::CreateLambdaTable()

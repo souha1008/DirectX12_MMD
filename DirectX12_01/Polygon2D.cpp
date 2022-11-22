@@ -132,7 +132,7 @@ void Polygon2D::Draw()
 
 	for (auto& m : m_Model.material)
 	{
-		DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(1, material_handle);
+		DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(2, material_handle);
 		DX12Renderer::GetGraphicsCommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
 
 		// ヒープポインタとインデックスを次に進める
