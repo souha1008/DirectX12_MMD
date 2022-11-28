@@ -97,8 +97,8 @@ typedef struct
 
 typedef struct
 {
-    XMFLOAT4X4 view;
-    XMFLOAT4X4 proj;
+    XMMATRIX view;
+    XMMATRIX proj;
     XMFLOAT3 eye;   // 視線座標
 }SCENEMATRIX;
 
@@ -109,13 +109,11 @@ typedef struct
 
 struct BoneNode
 {
-    int boneIdx;    // ボーンインデックス
-    XMFLOAT3 startPos;  // ボーン基準点（回転の中心）
-    XMFLOAT3 endPos;    // ボーン先端店（実際のスキニングには利用しない）
+    int boneIdx = 0;    // ボーンインデックス
+    XMFLOAT3 startPos = {0, 0, 0};  // ボーン基準点（回転の中心）
+    XMFLOAT3 endPos = { 0, 0, 0 };    // ボーン先端店（実際のスキニングには利用しない）
     std::vector<BoneNode*>  children;   // 子ノード
 };
-
-
 
 typedef struct
 {
@@ -140,9 +138,11 @@ typedef struct
     ComPtr<ID3D12DescriptorHeap> sceneDescHeap;
     ComPtr<ID3D12DescriptorHeap> transformDescHeap;
 
+    TRANSFORM TransformMatrix;
+
     TexMetadata MetaData;
     SCENEMATRIX* SceneMatrix;
-    TRANSFORM* TransformMatrix;
+    XMMATRIX* mappedMatrices;
 
     std::vector<MATERIAL> material;
     SUBSET sub;

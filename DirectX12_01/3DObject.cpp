@@ -174,6 +174,8 @@ HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 		return hr;
 	}
 
+	hr = Model->SceneConstBuffer->Map(0, nullptr, (void**)&Model->SceneMatrix);
+
 	// 視線
 	XMFLOAT3 eye(0, 15, -15);
 	// 注視点
@@ -181,18 +183,17 @@ HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 	// 上ベクトル
 	XMFLOAT3 v_up(0, 1, 0);
 
-	XMMATRIX viewMat  = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up));
-	XMMATRIX projMat = XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
+	Model->SceneMatrix->view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up));
+	Model->SceneMatrix->proj = XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
 		static_cast<float>(SCREEN_WIDTH) / static_cast<float>(SCREEN_HEIGHT),//アス比
 		0.1f,//近い方
 		1000.0f//遠い方
 	);
 
-	hr = Model->SceneConstBuffer->Map(0, nullptr, (void**)&Model->SceneMatrix);
-
-	XMStoreFloat4x4(&Model->SceneMatrix->view, viewMat);
-	XMStoreFloat4x4(&Model->SceneMatrix->proj, projMat);
 	Model->SceneMatrix->eye = eye;
+
+	//XMStoreFloat4x4(&Model->SceneMatrix->view, viewMat);
+	//XMStoreFloat4x4(&Model->SceneMatrix->proj, projMat);
 
 	// ディスクリプタヒープ作成
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
@@ -206,7 +207,7 @@ HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
 	cbvd.BufferLocation = Model->SceneConstBuffer.Get()->GetGPUVirtualAddress();
-	cbvd.SizeInBytes = Model->SceneConstBuffer.Get()->GetDesc().Width;
+	cbvd.SizeInBytes = static_cast<UINT>(Model->SceneConstBuffer.Get()->GetDesc().Width);
 
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, heapHandle);
 
@@ -226,7 +227,7 @@ HRESULT Object3D::SettingSceneCBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, M
 
 HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 {
-	auto bufferSize = sizeof(TRANSFORM);
+	auto bufferSize = sizeof(TRANSFORM) * (1 + Model->BoneMatrix.size());
 	bufferSize = (bufferSize + 0xff) & ~0xff;
 	auto cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	auto cd_rd = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
@@ -242,8 +243,10 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 	XMMATRIX WorldMatrix = XMMatrixIdentity();
 
 	// マップ
-	hr = Model->TransfromConstBuffer.Get()->Map(0, nullptr, (void**)&Model->TransformMatrix);
-	XMStoreFloat4x4(&Model->TransformMatrix->world, WorldMatrix);
+	hr = Model->TransfromConstBuffer.Get()->Map(0, nullptr, (void**)&Model->mappedMatrices);
+	//XMStoreFloat4x4(&Model->mappedMatrices[0].world, WorldMatrix);
+	Model->mappedMatrices[0] = WorldMatrix;
+	std::copy(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), Model->mappedMatrices + 1);
 
 	D3D12_DESCRIPTOR_HEAP_DESC transform_dhd = {};
 	transform_dhd.NumDescriptors = 1;
@@ -254,7 +257,7 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cdvDesc = {};
 	cdvDesc.BufferLocation = Model->TransfromConstBuffer.Get()->GetGPUVirtualAddress();
-	cdvDesc.SizeInBytes = bufferSize;
+	cdvDesc.SizeInBytes = static_cast<UINT>(bufferSize);
 
 	auto heapHandle = Model->transformDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cdvDesc, heapHandle);
@@ -749,8 +752,8 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 
 std::string Object3D::GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath)
 {
-	int pathInd1 = modelPath.rfind('/');
-	int pathInd2 = modelPath.rfind('\\');
+	unsigned long pathInd1 = modelPath.rfind('/');
+	unsigned long pathInd2 = modelPath.rfind('\\');
 	auto pathIndex = max(pathInd1, pathInd2);
 	auto folderPath = modelPath.substr(0, pathIndex+1);
 	return folderPath + texPath;
@@ -943,7 +946,7 @@ std::string Object3D::GetExtension(const std::string& path)
 
 std::pair<std::string, std::string> Object3D::SplitFileName(const std::string& path, const char splitter)
 {
-	int idx = path.find(splitter);
+	long idx = path.find(splitter);
 	std::pair<std::string, std::string> ret;
 	ret.first = path.substr(0, idx);
 	ret.second = path.substr(idx + 1, path.length() - idx - 1);
