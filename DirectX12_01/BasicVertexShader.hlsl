@@ -4,6 +4,13 @@ OUTPUT BasicVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOO
 {
 	OUTPUT output;
 
+	//world = world_1;
+	//view = view_1;
+	//proj = proj_1;
+	//eye = eye_1;
+
+	pos = mul(bones[boneno[0]], pos);
+
 	pos = mul(world, pos);
 	output.svpos = mul(mul(proj, view), pos);
 	output.pos = mul(view, pos);

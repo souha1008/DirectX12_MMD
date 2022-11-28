@@ -42,15 +42,11 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 
 	Model->sub.indecesNum = indicesNum;
 
-
 	// 頂点バッファー作成
 	HRESULT hr = CreateVertexBuffer(Model, vertices);
 
 	// 頂点バッファービュー設定
 	hr = SettingVertexBufferView(Model, vertices, pmdVertex_size);
-
-	// マテリアル読み込み
-	hr = LoadMaterial(fp, Model, ModelPath);
 
 	// インデックスバッファー生成
 	hr = CreateIndexBuffer(Model, indices);
@@ -58,8 +54,8 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	// インデックスバッファビュー設定
 	hr = SettingIndexBufferView(Model, indices);
 
-	// テクスチャデータセット
-	//hr = CreateTextureData(Model);
+	// マテリアル読み込み
+	hr = LoadMaterial(fp, Model, ModelPath);
 	
 	// ボーンの読み込み
 	hr = CreateBone(fp, Model);
@@ -69,8 +65,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 
 	hr = CreateTransformCBuffer(Model);
 
-	// ディスクリプター生成
-	//hr = CreateBasicDescriptorHeap(Model);
+	hr = CreateMaterialView(Model);
 
 	// シェーダーリソースビュー生成
 	hr = CreateShaderResourceView(Model);
@@ -161,8 +156,10 @@ HRESULT Object3D::SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned
 
 HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 {
+	auto buffersize = sizeof(SCENEMATRIX);
+	buffersize = (buffersize + 0xff) & ~0xff;
 	CD3DX12_HEAP_PROPERTIES cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);	// d3d12x.h
-	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer((sizeof(SCENEMATRIX) + 0xff) & ~0xff);		// d3d12x.h
+	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer(buffersize);		// d3d12x.h
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
 		&cd_hp,
@@ -170,8 +167,12 @@ HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 		&cd_buffer,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(Model->SceneConstBuffer.ReleaseAndGetAddressOf())
-	);
+		IID_PPV_ARGS(Model->SceneConstBuffer.ReleaseAndGetAddressOf()));
+	if (FAILED(hr))
+	{
+		assert(SUCCEEDED(hr));
+		return hr;
+	}
 
 	// 視線
 	XMFLOAT3 eye(0, 15, -15);
@@ -201,11 +202,11 @@ HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(Model->sceneDescHeap.ReleaseAndGetAddressOf()));
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
-	cbvd.BufferLocation = Model->SceneConstBuffer->GetGPUVirtualAddress();
-	cbvd.SizeInBytes = static_cast<UINT>(Model->SceneConstBuffer.Get()->GetDesc().Width);
-
 	auto heapHandle = Model->sceneDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
+	cbvd.BufferLocation = Model->SceneConstBuffer.Get()->GetGPUVirtualAddress();
+	cbvd.SizeInBytes = Model->SceneConstBuffer.Get()->GetDesc().Width;
 
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, heapHandle);
 
@@ -236,11 +237,10 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 		&cd_rd,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(Model->TransfromConstBuffer.ReleaseAndGetAddressOf())
-	);
-
+		IID_PPV_ARGS(Model->TransfromConstBuffer.ReleaseAndGetAddressOf()));
 
 	XMMATRIX WorldMatrix = XMMatrixIdentity();
+
 	// マップ
 	hr = Model->TransfromConstBuffer.Get()->Map(0, nullptr, (void**)&Model->TransformMatrix);
 	XMStoreFloat4x4(&Model->TransformMatrix->world, WorldMatrix);
@@ -253,11 +253,10 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&transform_dhd, IID_PPV_ARGS(Model->transformDescHeap.ReleaseAndGetAddressOf()));
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cdvDesc = {};
-	cdvDesc.BufferLocation = Model->TransfromConstBuffer->GetGPUVirtualAddress();
+	cdvDesc.BufferLocation = Model->TransfromConstBuffer.Get()->GetGPUVirtualAddress();
 	cdvDesc.SizeInBytes = bufferSize;
 
 	auto heapHandle = Model->transformDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
-
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cdvDesc, heapHandle);
 
 	return hr;
@@ -597,9 +596,6 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 	// マテリアルバッファー作成
 	HRESULT hr = CreateMaterialBuffer(Model);
 
-	// マテリアルバッファービュー作成
-	hr = CreateMaterialView(Model);
-
 	return hr;
 }
 
@@ -641,7 +637,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	D3D12_DESCRIPTOR_HEAP_DESC mat_dhd = {};
 	mat_dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	mat_dhd.NodeMask = 0;
-	mat_dhd.NumDescriptors = Model->sub.materialNum * 5;	// マテリアル数分（スフィアマテリアル追加）
+	mat_dhd.NumDescriptors = Model->sub.materialNum * 5;	// マテリアル数分（スフィアマテリアル追加）+ テクスチャ
 	mat_dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
@@ -967,10 +963,9 @@ void Object3D::UnInit(MODEL_DX12* Model)
 	Model->transformDescHeap.ReleaseAndGetAddressOf();
 }
 
-
 HRESULT Object3D::CreateBone(FILE* file, MODEL_DX12* Model)
 {
-	unsigned short boneNum = 0;
+	unsigned short boneNum;
 	fread(&boneNum, sizeof(boneNum), 1, file);
 
 	std::vector<PMDBone> pmdBone(boneNum);

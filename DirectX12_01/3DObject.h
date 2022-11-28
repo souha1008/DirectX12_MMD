@@ -38,7 +38,7 @@ typedef struct
 }PMDVertex;
 #pragma pack(pop)
 
-#pragma pack(1) // ここから1バイトパッキングとなり、アライメントは発生しない
+#pragma pack(push, 1) // ここから1バイトパッキングとなり、アライメントは発生しない
 typedef struct
 {
     XMFLOAT3 diffuse;   // ディフューズ色
@@ -53,9 +53,9 @@ typedef struct
     unsigned int indicesNum;
     char texFilePath[20];   // テクスチャファイルパス + α
 }PMDMaterial;   // パディングが発生しないため70バイト
-#pragma pack()  // パッキング指定を解除
+#pragma pack(pop)  // パッキング指定を解除
 
-#pragma pack(1)
+#pragma pack(push, 1)
 typedef struct
 {
     char boneName[20];          // ボーン名
@@ -65,6 +65,7 @@ typedef struct
     unsigned short  ikBoneNo;   // IKボーン番号
     XMFLOAT3 pos;               // ボーンの基準点座標
 }PMDBone;
+#pragma pack(pop)
 
 // シェーダーに転送するデータ
 typedef struct

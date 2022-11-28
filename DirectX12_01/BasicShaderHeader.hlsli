@@ -5,18 +5,17 @@ Texture2D<float4> toon:register(t3);     //3”ÔƒXƒƒbƒg‚Éİ’è‚³‚ê‚½ƒeƒNƒXƒ`ƒƒ(ƒgƒ
 SamplerState smp : register(s0);
 SamplerState smpToon : register(s1);    // 1”ÔƒXƒƒbƒg‚Éİ’è‚³‚ê‚½(ƒgƒD[ƒ“)
 
-cbuffer SceneBuffer : register(b0)   // ’è”ƒoƒbƒtƒ@[
+cbuffer SceneView : register(b0)   // ’è”ƒoƒbƒtƒ@[
 {
-    //matrix world;
     matrix view;    // ƒrƒ…[
     matrix proj;    // ƒvƒƒWƒFƒNƒVƒ‡ƒ“
-    float3 eye; // ‹ü
+    float3 eye;     // ‹ü
 };
 
 cbuffer Transform : register(b1)
 {
     matrix world;   // ƒ[ƒ‹ƒh•ÏŠ·s—ñ
-    //matrix bones[256];  // ƒ{[ƒ“s—ñ
+    matrix bones[256];  // ƒ{[ƒ“s—ñ
 };
 
 cbuffer Material : register(b2)
@@ -25,8 +24,6 @@ cbuffer Material : register(b2)
     float4 specular;
     float3 ambient;
 };
-
-
 
 struct OUTPUT
 {
