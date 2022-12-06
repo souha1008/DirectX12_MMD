@@ -176,7 +176,7 @@ void DX12Renderer::EnableDebugLayer()
 	auto g_Result = D3D12GetDebugInterface(IID_PPV_ARGS(&debugLayer));
 
 	debugLayer->EnableDebugLayer();
-	debugLayer->SetEnableGPUBasedValidation(true);
+	//debugLayer->SetEnableGPUBasedValidation(true);
 	debugLayer->Release();
 }
 

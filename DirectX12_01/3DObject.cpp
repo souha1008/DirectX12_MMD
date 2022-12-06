@@ -192,9 +192,6 @@ HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 
 	Model->SceneMatrix->eye = eye;
 
-	//XMStoreFloat4x4(&Model->SceneMatrix->view, viewMat);
-	//XMStoreFloat4x4(&Model->SceneMatrix->proj, projMat);
-
 	// ディスクリプタヒープ作成
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
 	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;	// シェーダーから見える

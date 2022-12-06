@@ -1,10 +1,31 @@
 #include "BasicShaderHeader.hlsli"
 
+cbuffer SceneView : register(b0)   // 定数バッファー
+{
+	matrix view;    // ビュー
+	matrix proj;    // プロジェクション
+	float3 eye;     // 視線
+
+};
+
+cbuffer Transform : register(b1)
+{
+	matrix world;   // ワールド変換行列
+	//matrix bones[256];  // ボーン行列
+};
+
+cbuffer Material : register(b2)
+{
+	float4 diffuse;
+	float4 specular;
+	float3 ambient;
+};
+
 OUTPUT BasicVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD, min16uint2 boneno : BONE_NO, min16uint weight : WEIGHT)
 {
 	OUTPUT output;
 
-	pos = mul(bones[boneno[0]], pos);
+	//pos = mul(bones[boneno[0]], pos);
 
 	pos = mul(world, pos);
 	output.svpos = mul(mul(proj, view), pos);
