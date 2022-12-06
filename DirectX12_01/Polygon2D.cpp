@@ -118,20 +118,23 @@ void Polygon2D::Draw()
 	ID3D12DescriptorHeap* scene_dh[] = { m_Model.sceneDescHeap.Get() };
 	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, scene_dh);
 	// ルートパラメータとディスクリプターヒープの関連付け
-	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, m_Model.sceneDescHeap.Get()->GetGPUDescriptorHandleForHeapStart());
+	auto scene_handle = m_Model.sceneDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, scene_handle);
 
 	ID3D12DescriptorHeap* trans_dh[] = { m_Model.transformDescHeap.Get() };
 	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, trans_dh);
-	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(1, m_Model.transformDescHeap.Get()->GetGPUDescriptorHandleForHeapStart());
+	auto transform_handle = m_Model.transformDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(1, transform_handle);
 
 	// マテリアルのディスクリプタヒープセット
 	ID3D12DescriptorHeap* mdh[] = { m_Model.materialDescHeap.Get() };
 	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, mdh);
 
+	// マテリアル用ディスクリプタヒープの先頭アドレスを取得
 	auto material_handle = m_Model.materialDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
 	unsigned int idxOffset = 0;
 
-	// CBVとSRVとSRVとSRVで1マテリアルを描画するのでインクリメントサイズを４倍にする
+	// CBVとSRVとSRVとSRVとSRVで1マテリアルを描画するのでインクリメントサイズを５倍にする
 	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
 
 	for (auto& m : m_Model.material)

@@ -432,8 +432,7 @@ HRESULT DX12Renderer::CreateRootSignature()
 	//dr[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	//dr[0].BaseShaderRegister = 0;
 	//dr[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-
+	
 	// 定数(b1)（ワールド・ボーン用）
 	dr[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 	//dr[1].NumDescriptors = 1;
@@ -443,32 +442,40 @@ HRESULT DX12Renderer::CreateRootSignature()
 
 	// マテリアル(b2)
 	dr[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
-	//dr[2].NumDescriptors = 5;	// テクスチャとsphとspaとトゥーン
-	//dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	//dr[2].BaseShaderRegister = 0;
+	//dr[2].NumDescriptors = 1;	
+	//dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	//dr[2].BaseShaderRegister = 2;
 	//dr[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// テクスチャ用（マテリアルとペア）
 	dr[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
+	//dr[3].NumDescriptors = 4;	// テクスチャとsphとspaとトゥーン
+	//dr[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	//dr[3].BaseShaderRegister = 0;
+	//dr[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// ルートパラメータ作成
-	CD3DX12_ROOT_PARAMETER rootparam[3] = {};
-	rootparam[0].InitAsDescriptorTable(1, &dr[0]);	// パラメータータイプはデスクリプターテーブルで、レンジ数は1、レンジのアドレス
+	D3D12_ROOT_PARAMETER rootparam[3] = {};
+	//rootparam[0].InitAsDescriptorTable(1, &dr[0]);	// パラメータータイプはデスクリプターテーブルで、レンジ数は1、レンジのアドレス
 	
-	//rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	//rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;	// ピクセルシェーダーから見える
-	//rootparam[0].DescriptorTable.pDescriptorRanges = &dr[0];	// ディスクリプタレンジのアドレス
-	//rootparam[0].DescriptorTable.NumDescriptorRanges = 1;	// ディスクリプタレンジ数
+	rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootparam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;	// 全シェーダーから見える
+	rootparam[0].DescriptorTable.pDescriptorRanges = &dr[0];	// ディスクリプタレンジのアドレス
+	rootparam[0].DescriptorTable.NumDescriptorRanges = 1;	// ディスクリプタレンジ数
 
 	// ワールド・ボーン
-	rootparam[1].InitAsDescriptorTable(1, &dr[1]);
-	//rootparam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	//rootparam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// 頂点シェーダーから見える
-	//rootparam[1].DescriptorTable.pDescriptorRanges = &dr[1];	// ディスクリプタレンジのアドレス
-	//rootparam[1].DescriptorTable.NumDescriptorRanges = 2;	// ディスクリプタレンジ数
+	//rootparam[1].InitAsDescriptorTable(1, &dr[1]);
+	rootparam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootparam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;	// 頂点シェーダーから見える
+	rootparam[1].DescriptorTable.pDescriptorRanges = &dr[1];	// ディスクリプタレンジのアドレス
+	rootparam[1].DescriptorTable.NumDescriptorRanges = 1;	// ディスクリプタレンジ数
 	
 	// マテリアル
-	rootparam[2].InitAsDescriptorTable(2, &dr[2]);
+	//rootparam[2].InitAsDescriptorTable(2, &dr[2], D3D12_SHADER_VISIBILITY_PIXEL);
+	rootparam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootparam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootparam[2].DescriptorTable.pDescriptorRanges = &dr[2];
+	rootparam[2].DescriptorTable.NumDescriptorRanges = 2;
 
 	CD3DX12_STATIC_SAMPLER_DESC sd[2] = {};
 
@@ -496,7 +503,7 @@ HRESULT DX12Renderer::CreateRootSignature()
 	rsd.NumStaticSamplers = 2;		// サンプラーステート数
 
 	ID3DBlob* RootSigBlob = nullptr;
-	hr = D3D12SerializeRootSignature(&rsd, D3D_ROOT_SIGNATURE_VERSION_1_0, &RootSigBlob, &m_ErrorBlob);
+	hr = D3D12SerializeRootSignature(&rsd, D3D_ROOT_SIGNATURE_VERSION_1, &RootSigBlob, &m_ErrorBlob);
 	hr = m_Device->CreateRootSignature(0, RootSigBlob->GetBufferPointer(), RootSigBlob->GetBufferSize(), IID_PPV_ARGS(m_RootSignature.ReleaseAndGetAddressOf()));
 	RootSigBlob->Release();
 	return hr;

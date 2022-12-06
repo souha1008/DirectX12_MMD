@@ -65,6 +65,7 @@ typedef struct
     unsigned short  ikBoneNo;   // IKボーン番号
     XMFLOAT3 pos;               // ボーンの基準点座標
 }PMDBone;
+#pragma pack()
 
 // シェーダーに転送するデータ
 typedef struct
