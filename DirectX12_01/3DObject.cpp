@@ -244,7 +244,18 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 
 		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// 腕のボーン基準点を原点へ戻すように平行移動する
 			* XMMatrixRotationZ(-XM_PIDIV2)									// 腕を90°回転
-			* XMMatrixTranslation(pos.x, pos.y, pos.z);	// 3
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);	// 腕のボーンをもとのボーン基準点に戻すように平行移動
+		Model->BoneMatrix[node.boneIdx] = mat;
+	}
+
+	// 右腕の回転
+	{
+		auto node = m_BoneNodeTable["首"];
+		auto& pos = node.startPos;	// 最初のポジション
+
+		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// 腕のボーン基準点を原点へ戻すように平行移動する
+			* XMMatrixRotationZ(-XM_PIDIV2)								// 腕を90°回転
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);	// 腕のボーンをもとのボーン基準点に戻すように平行移動
 		Model->BoneMatrix[node.boneIdx] = mat;
 	}
 
