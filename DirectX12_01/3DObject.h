@@ -164,22 +164,14 @@ public:
 
     // カメラ用定数バッファ生成
     HRESULT CreateSceneCBuffer(MODEL_DX12* Model);
-    HRESULT SettingSceneCBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model);
 
     // オブジェクト用定数バッファ生成
     HRESULT CreateTransformCBuffer(MODEL_DX12* Model);
-    HRESULT SettingTransformCBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model);
-
-    // ディスクリプタヒープ生成
-    HRESULT CreateBasicDescriptorHeap(MODEL_DX12* Model);
 
     // テクスチャデータ生成
     HRESULT CreateTextureData(MODEL_DX12* Model);
     // テクスチャデータロード
     ID3D12Resource* LoadTextureFromFile(MODEL_DX12* Model, std::string& texPath);
-
-    // シェーダーリソースビュー生成
-    HRESULT CreateShaderResourceView(MODEL_DX12* Model);
 
     // マテリアル生成
     HRESULT LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelPath);

@@ -204,17 +204,6 @@ HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 	return hr;
 }
 
-HRESULT Object3D::SettingSceneCBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model)
-{
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
-	cbvd.BufferLocation = Model->SceneConstBuffer.Get()->GetGPUVirtualAddress();
-	cbvd.SizeInBytes = static_cast<UINT>(Model->SceneConstBuffer.Get()->GetDesc().Width);
-
-	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, *handle);
-
-	return S_OK;
-}
-
 HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 {
 	auto bufferSize = sizeof(TRANSFORM) * (1 + Model->BoneMatrix.size());
@@ -256,29 +245,6 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 	auto heapHandle = Model->transformDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cdvDesc, heapHandle);
 
-	return hr;
-}
-
-HRESULT Object3D::SettingTransformCBufferView(D3D12_CPU_DESCRIPTOR_HANDLE* handle, MODEL_DX12* Model)
-{
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
-	cbvd.BufferLocation = Model->TransfromConstBuffer->GetGPUVirtualAddress();
-	cbvd.SizeInBytes = static_cast<UINT>(Model->TransfromConstBuffer.Get()->GetDesc().Width);
-
-	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, *handle);
-	return S_OK;
-}
-
-HRESULT Object3D::CreateBasicDescriptorHeap(MODEL_DX12* Model)
-{
-	// ディスクリプタヒープ作成
-	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;	// シェーダーから見える
-	dhd.NodeMask = 0;	// マスク0
-	dhd.NumDescriptors = 1;	// ビューは今のところ１つだけ
-	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-
-	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(Model->sceneDescHeap.ReleaseAndGetAddressOf()));
 	return hr;
 }
 
@@ -460,25 +426,6 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 	m_resourceTable[texPath] = Model->TextureBuffer.Get();
 
 	return Model->TextureBuffer.Get();
-}
-
-HRESULT Object3D::CreateShaderResourceView(MODEL_DX12* Model)
-{
-	// シェーダーリソースビューを作成
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvd = {};
-	srvd.Format = Model->MetaData.format;	// RGBA(0~1に正規化)
-	srvd.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvd.Texture2D.MipLevels = 1;
-
-	DX12Renderer::GetDevice()->CreateShaderResourceView(
-		Model->TextureBuffer.Get(),
-		&srvd,
-		Model->sceneDescHeap.Get()->GetCPUDescriptorHandleForHeapStart()
-	);
-
-
-	return S_OK;
 }
 
 HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelPath)
