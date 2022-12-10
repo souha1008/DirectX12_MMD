@@ -10,6 +10,8 @@ std::vector<TEXRGBA> g_Texture(256 * 256);
 
 HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 {
+	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
+
 	// ラムダ式初期化
 	CreateLambdaTable();
 
@@ -43,7 +45,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	Model->sub.indecesNum = indicesNum;
 
 	// 頂点バッファー作成
-	HRESULT hr = CreateVertexBuffer(Model, vertices);
+	hr = CreateVertexBuffer(Model, vertices);
 
 	// 頂点バッファービュー設定
 	hr = SettingVertexBufferView(Model, vertices, pmdVertex_size);
@@ -56,7 +58,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 
 	// マテリアル読み込み
 	hr = LoadMaterial(fp, Model, ModelPath);
-	
+
 	// ボーンの読み込み
 	hr = CreateBone(fp, Model);
 
@@ -66,15 +68,6 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	hr = CreateTransformCBuffer(Model);
 
 	hr = CreateMaterialView(Model);
-
-	// シェーダーリソースビュー生成
-	hr = CreateShaderResourceView(Model);
-
-	// 定数バッファービュー設定
-	//D3D12_CPU_DESCRIPTOR_HANDLE basicHeapHandle = Model->sceneDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
-	//basicHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);	// ポインタずらし気を付けよう！
-	//hr = SettingSceneCBufferView(&basicHeapHandle, Model);
-	//hr = SettingTransformCBufferView(&basicHeapHandle, Model);
 	
 	// ファイルクローズ
 	fclose(fp);
@@ -243,6 +236,10 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 	hr = Model->TransfromConstBuffer.Get()->Map(0, nullptr, (void**)&Model->mappedMatrices);
 	//XMStoreFloat4x4(&Model->mappedMatrices[0].world, WorldMatrix);
 	Model->mappedMatrices[0] = WorldMatrix;
+
+	auto node = m_BoneNodeTable["左腕"];
+	Model->BoneMatrix[node.boneIdx] = XMMatrixRotationZ(XM_PIDIV2);
+
 	std::copy(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), Model->mappedMatrices + 1);
 
 	D3D12_DESCRIPTOR_HEAP_DESC transform_dhd = {};
@@ -396,13 +393,11 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 
 	TexMetadata metadata = {};
 	ScratchImage scratchImg = {};
-	
-	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 
 	auto wtexpath = GetWideStringFromString(texPath); // テクスチャファイルのパス
 	auto ext = GetExtension(texPath);	// 拡張子を取得
 
-	hr = m_loadLambdaTable[ext](wtexpath, &metadata, scratchImg);
+	HRESULT hr = m_loadLambdaTable[ext](wtexpath, &metadata, scratchImg);
 
 	if (FAILED(hr))
 	{
@@ -749,8 +744,8 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 
 std::string Object3D::GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath)
 {
-	unsigned long pathInd1 = modelPath.rfind('/');
-	unsigned long pathInd2 = modelPath.rfind('\\');
+	int pathInd1 = modelPath.rfind('/');
+	int pathInd2 = modelPath.rfind('\\');
 	auto pathIndex = max(pathInd1, pathInd2);
 	auto folderPath = modelPath.substr(0, pathIndex+1);
 	return folderPath + texPath;
