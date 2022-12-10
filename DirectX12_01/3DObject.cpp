@@ -226,9 +226,17 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 	//XMStoreFloat4x4(&Model->mappedMatrices[0].world, WorldMatrix);
 	Model->mappedMatrices[0] = WorldMatrix;
 
+	// 回転させる
 	auto node = m_BoneNodeTable["左腕"];
-	Model->BoneMatrix[node.boneIdx] = XMMatrixRotationZ(XM_PIDIV2);
+	auto& pos = node.startPos;	// 最初のポジション
 
+
+	XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// 腕のボーン基準点を原点へ戻すように平行移動する
+									  * XMMatrixRotationZ(XM_PIDIV2)				// 腕を90°回転
+									  * XMMatrixTranslation(pos.x, pos.y, pos.z);	// 3
+	RecursiveMatrixMultiply(Model, &node, mat);
+
+	// マトリクスのコピー
 	std::copy(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), Model->mappedMatrices + 1);
 
 	D3D12_DESCRIPTOR_HEAP_DESC transform_dhd = {};
@@ -687,6 +695,16 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	}
 
 	return S_OK;
+}
+
+void Object3D::RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat)
+{
+	Model->BoneMatrix[node->boneIdx] *= mat;
+	
+	for (auto& cnode : node->children)
+	{
+		RecursiveMatrixMultiply(Model, cnode, Model->BoneMatrix[node->boneIdx]);
+	}
 }
 
 std::string Object3D::GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath)

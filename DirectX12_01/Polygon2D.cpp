@@ -88,7 +88,7 @@ void Polygon2D::Init()
 		return;
 	}
 
-
+	
 }
 
 void Polygon2D::Uninit()

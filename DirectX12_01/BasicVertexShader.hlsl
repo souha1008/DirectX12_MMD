@@ -11,7 +11,7 @@ cbuffer SceneView : register(b0)   // 定数バッファー
 cbuffer Transform : register(b1)
 {
 	matrix world;   // ワールド変換行列
-	//matrix bones[256];  // ボーン行列
+	matrix bones[256];  // ボーン行列
 };
 
 cbuffer Material : register(b2)
@@ -25,7 +25,7 @@ OUTPUT BasicVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOO
 {
 	OUTPUT output;
 
-	//pos = mul(bones[boneno[0]], pos);
+	pos = mul(bones[boneno[0]], pos);
 
 	pos = mul(world, pos);
 	output.svpos = mul(mul(proj, view), pos);

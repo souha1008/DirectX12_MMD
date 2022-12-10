@@ -181,6 +181,9 @@ public:
     // ボーン生成
     HRESULT CreateBone(FILE* file, MODEL_DX12* Model);
 
+    // ボーンを子の末端まで伝える再帰関数
+    void RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat);
+
     std::string GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath);
     std::wstring GetWideStringFromString(const std::string& str);
     std::string GetExtension(const std::string& path);
