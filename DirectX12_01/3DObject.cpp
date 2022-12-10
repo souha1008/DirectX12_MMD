@@ -66,15 +66,15 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	hr = CreateConstBuffer(Model);
 
 	// ディスクリプター生成
-	hr = CreateBasicDescriptorHeap(Model);
+	//hr = CreateBasicDescriptorHeap(Model);
 
 	// シェーダーリソースビュー生成
-	hr = CreateShaderResourceView(Model);
+	//hr = CreateShaderResourceView(Model);
 
 	// 定数バッファービュー設定
-	D3D12_CPU_DESCRIPTOR_HANDLE basicHeapHandle = Model->basicDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	//D3D12_CPU_DESCRIPTOR_HANDLE basicHeapHandle = Model->basicDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 	//basicHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);	// ポインタずらし気を付けよう！
-	hr = SettingConstBufferView(&basicHeapHandle, Model);
+	//hr = SettingConstBufferView(&basicHeapHandle, Model);
 
 	// ファイルクローズ
 	fclose(fp);
@@ -201,6 +201,21 @@ HRESULT Object3D::CreateConstBuffer(MODEL_DX12* Model)
 	XMStoreFloat4x4(&Model->MapMatrix->view, viewMat);
 	XMStoreFloat4x4(&Model->MapMatrix->proj, projMat);
 	Model->MapMatrix->eye = eye;
+
+	// ディスクリプタヒープ作成
+	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;	// シェーダーから見える
+	dhd.NodeMask = 0;	// マスク0
+	dhd.NumDescriptors = 1;	// ビューは今のところ１つだけ
+	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(Model->basicDescHeap.ReleaseAndGetAddressOf()));
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
+	cbvd.BufferLocation = Model->ConstBuffer.Get()->GetGPUVirtualAddress();
+	cbvd.SizeInBytes = static_cast<UINT>(Model->ConstBuffer.Get()->GetDesc().Width);
+
+	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, Model->basicDescHeap.Get()->GetCPUDescriptorHandleForHeapStart());
 
 	return hr;
 }
