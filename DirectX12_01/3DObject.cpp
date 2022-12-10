@@ -226,15 +226,29 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 	//XMStoreFloat4x4(&Model->mappedMatrices[0].world, WorldMatrix);
 	Model->mappedMatrices[0] = WorldMatrix;
 
-	// ‰ñ“]‚³‚¹‚é
-	auto node = m_BoneNodeTable["¶˜r"];
-	auto& pos = node.startPos;	// Å‰‚Ìƒ|ƒWƒVƒ‡ƒ“
+	//@¶˜r‚Ì‰ñ“]
+	{
+		auto node = m_BoneNodeTable["¶˜r"];
+		auto& pos = node.startPos;	// Å‰‚Ìƒ|ƒWƒVƒ‡ƒ“
 
+		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// ˜r‚Ìƒ{[ƒ“Šî€“_‚ðŒ´“_‚Ö–ß‚·‚æ‚¤‚É•½sˆÚ“®‚·‚é
+			* XMMatrixRotationZ(XM_PIDIV2)								// ˜r‚ð90‹‰ñ“]
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);	// 3
+		Model->BoneMatrix[node.boneIdx] = mat;
+	}
 
-	XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// ˜r‚Ìƒ{[ƒ“Šî€“_‚ðŒ´“_‚Ö–ß‚·‚æ‚¤‚É•½sˆÚ“®‚·‚é
-									  * XMMatrixRotationZ(XM_PIDIV2)				// ˜r‚ð90‹‰ñ“]
-									  * XMMatrixTranslation(pos.x, pos.y, pos.z);	// 3
-	RecursiveMatrixMultiply(Model, &node, mat);
+	// ¶•I‚Ì‰ñ“]
+	{
+		auto node = m_BoneNodeTable["¶‚Ð‚¶"];
+		auto& pos = node.startPos;	// Å‰‚Ìƒ|ƒWƒVƒ‡ƒ“
+
+		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// ˜r‚Ìƒ{[ƒ“Šî€“_‚ðŒ´“_‚Ö–ß‚·‚æ‚¤‚É•½sˆÚ“®‚·‚é
+			* XMMatrixRotationZ(-XM_PIDIV2)									// ˜r‚ð90‹‰ñ“]
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);	// 3
+		Model->BoneMatrix[node.boneIdx] = mat;
+	}
+
+	RecursiveMatrixMultiply(Model, &m_BoneNodeTable["ƒZƒ“ƒ^["], XMMatrixIdentity());
 
 	// ƒ}ƒgƒŠƒNƒX‚ÌƒRƒs[
 	std::copy(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), Model->mappedMatrices + 1);

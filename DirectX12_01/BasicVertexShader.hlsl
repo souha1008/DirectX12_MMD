@@ -25,7 +25,14 @@ OUTPUT BasicVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOO
 {
 	OUTPUT output;
 
-	pos = mul(bones[boneno[0]], pos);
+	// 0.0~1.0の範囲にする
+	float w = weight / 100.0f;
+
+	// 行列の線形補間
+	matrix bm = bones[boneno[0]] * w + bones[boneno[1]] * (1 - w);
+
+	// 線形補間した行列を乗算
+	pos = mul(bm, pos);
 
 	pos = mul(world, pos);
 	output.svpos = mul(mul(proj, view), pos);
