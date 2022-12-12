@@ -34,6 +34,7 @@ using namespace Microsoft::WRL;
 #include <string>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 
 #pragma warning(push)
 #pragma warning(disable:4005)

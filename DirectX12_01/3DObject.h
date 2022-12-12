@@ -65,6 +65,16 @@ typedef struct
     unsigned short  ikBoneNo;   // IKボーン番号
     XMFLOAT3 pos;               // ボーンの基準点座標
 }PMDBone;
+#pragma pack(pop)
+
+typedef struct
+{
+    char boneName[15];      // ボーン名
+    unsigned int frameNo;   // フレーム番号
+    XMFLOAT3 location;      // 位置
+    XMFLOAT4 quaternion;    // クォータニオン（回転）
+    unsigned char bezier[64]; // ベジェ保管パラメータ
+}VMDMotion;
 
 // シェーダーに転送するデータ
 typedef struct
@@ -114,6 +124,15 @@ struct BoneNode
     std::vector<BoneNode*>  children;   // 子ノード
 };
 
+struct KeyFrame
+{
+    unsigned int frameNo;   // アニメーション開始からのフレーム数
+    XMVECTOR quaternion;    // クォータニオン
+
+    KeyFrame(unsigned int fno, XMVECTOR& q) : frameNo(fno), quaternion(q)
+    {}
+};
+
 typedef struct
 {
     ComPtr<ID3D12Resource> VertexBuffer;
@@ -145,6 +164,11 @@ typedef struct
 
     std::vector<MATERIAL> material;
     SUBSET sub;
+
+    // モーションデータ
+    std::unordered_map<std::string, std::vector<KeyFrame>> MotionData;
+
+
 
 }MODEL_DX12;
 
@@ -181,6 +205,9 @@ public:
     // ボーン生成
     HRESULT CreateBone(FILE* file, MODEL_DX12* Model);
 
+    // VMDデータ読み込み
+    HRESULT LoadVMDData(FILE* file, MODEL_DX12* Model);
+
     // ボーンを子の末端まで伝える再帰関数
     void RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat);
 
@@ -209,4 +236,6 @@ private:
     std::map<std::string, BoneNode> m_BoneNodeTable;
 
 };
+
+
 

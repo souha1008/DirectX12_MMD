@@ -62,6 +62,9 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	// ボーンの読み込み
 	hr = CreateBone(fp, Model);
 
+	// モーションデータ読み込み
+	hr = LoadVMDData(fopen("Assets/VMD/pose.vmd", "rb"), Model);
+
 	// 定数バッファー&ビュー生成
 	hr = CreateSceneCBuffer(Model);
 
@@ -170,9 +173,9 @@ HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
 	hr = Model->SceneConstBuffer->Map(0, nullptr, (void**)&Model->SceneMatrix);
 
 	// 視線
-	XMFLOAT3 eye(0, 15, -15);
+	XMFLOAT3 eye(0, 10, -35);
 	// 注視点
-	XMFLOAT3 target(0, 15, 0);
+	XMFLOAT3 target(0, 10, 0);
 	// 上ベクトル
 	XMFLOAT3 v_up(0, 1, 0);
 
@@ -225,39 +228,6 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 	hr = Model->TransfromConstBuffer.Get()->Map(0, nullptr, (void**)&Model->mappedMatrices);
 	//XMStoreFloat4x4(&Model->mappedMatrices[0].world, WorldMatrix);
 	Model->mappedMatrices[0] = WorldMatrix;
-
-	//　左腕の回転
-	{
-		auto node = m_BoneNodeTable["左腕"];
-		auto& pos = node.startPos;	// 最初のポジション
-
-		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// 腕のボーン基準点を原点へ戻すように平行移動する
-			* XMMatrixRotationZ(XM_PIDIV2)								// 腕を90°回転
-			* XMMatrixTranslation(pos.x, pos.y, pos.z);	// 3
-		Model->BoneMatrix[node.boneIdx] = mat;
-	}
-
-	// 左肘の回転
-	{
-		auto node = m_BoneNodeTable["左ひじ"];
-		auto& pos = node.startPos;	// 最初のポジション
-
-		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// 腕のボーン基準点を原点へ戻すように平行移動する
-			* XMMatrixRotationZ(-XM_PIDIV2)									// 腕を90°回転
-			* XMMatrixTranslation(pos.x, pos.y, pos.z);	// 腕のボーンをもとのボーン基準点に戻すように平行移動
-		Model->BoneMatrix[node.boneIdx] = mat;
-	}
-
-	// 右腕の回転
-	{
-		auto node = m_BoneNodeTable["首"];
-		auto& pos = node.startPos;	// 最初のポジション
-
-		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)	// 腕のボーン基準点を原点へ戻すように平行移動する
-			* XMMatrixRotationZ(-XM_PIDIV2)								// 腕を90°回転
-			* XMMatrixTranslation(pos.x, pos.y, pos.z);	// 腕のボーンをもとのボーン基準点に戻すように平行移動
-		Model->BoneMatrix[node.boneIdx] = mat;
-	}
 
 	RecursiveMatrixMultiply(Model, &m_BoneNodeTable["センター"], XMMatrixIdentity());
 
@@ -984,6 +954,47 @@ HRESULT Object3D::CreateBone(FILE* file, MODEL_DX12* Model)
 	Model->BoneMatrix.resize(pmdBone.size());
 
 	std::fill(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), XMMatrixIdentity());
+
+	return S_OK;
+}
+
+HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
+{
+	fseek(file, 50, SEEK_SET);
+
+	unsigned int motionDataNum = 0;
+	fread(&motionDataNum, sizeof(motionDataNum), 1, file);
+
+	std::vector<VMDMotion> vmdMotionData(motionDataNum);
+
+	// モーションデータ読み込み
+	for (auto& motion : vmdMotionData)
+	{
+		fread(motion.boneName, sizeof(motion.boneName), 1, file);	// ボーン名取得
+		fread(&motion.frameNo,
+			sizeof(motion.frameNo)			//フレーム番号
+			+ sizeof(motion.location)		// 
+			+ sizeof(motion.quaternion)
+			+ sizeof(motion.bezier),
+			1, file);
+	}
+
+	for (auto& vmdmotion : vmdMotionData)
+	{
+		XMVECTOR q = XMLoadFloat4(&vmdmotion.quaternion);
+		Model->MotionData[vmdmotion.boneName].emplace_back(KeyFrame(vmdmotion.frameNo, q));
+	}
+
+	// クォータニオン適応
+	for (auto& bonemotion : Model->MotionData)
+	{
+		auto node = m_BoneNodeTable[bonemotion.first];
+		auto& pos = node.startPos;
+		auto mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
+				 * XMMatrixRotationQuaternion(bonemotion.second[0].quaternion)
+				 * XMMatrixTranslation(pos.x, pos.y, pos.z);
+		Model->BoneMatrix[node.boneIdx] = mat;
+	}
 
 	return S_OK;
 }
