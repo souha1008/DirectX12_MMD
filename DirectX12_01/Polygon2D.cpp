@@ -88,7 +88,7 @@ void Polygon2D::Init()
 		return;
 	}
 
-	
+	g_Object->PlayAnimation();
 }
 
 void Polygon2D::Uninit()
@@ -99,6 +99,8 @@ void Polygon2D::Uninit()
 void Polygon2D::Update()
 {
 	PolygonRotation();
+
+	g_Object->MotionUpdate(&m_Model);
 
 	//PolygonMove();
 }

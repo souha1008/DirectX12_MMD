@@ -63,7 +63,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	hr = CreateBone(fp, Model);
 
 	// モーションデータ読み込み
-	hr = LoadVMDData(fopen("Assets/VMD/pose.vmd", "rb"), Model);
+	hr = LoadVMDData(fopen("Assets/VMD/swing.vmd", "rb"), Model);
 
 	// 定数バッファー&ビュー生成
 	hr = CreateSceneCBuffer(Model);
@@ -918,6 +918,46 @@ void Object3D::UnInit(MODEL_DX12* Model)
 	Model->transformDescHeap.ReleaseAndGetAddressOf();
 }
 
+void Object3D::MotionUpdate(MODEL_DX12* Model)
+{
+	auto elapsedTime = timeGetTime() - m_StartTime;	// 経過時間
+	unsigned int frameNo = 30 * (elapsedTime / 1000.0f);	// 経過フレーム数計算
+
+	// 行列情報クリア（クリアしていないと前フレームのポーズが重ねがけされてモデルが壊れる）
+	std::fill(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), XMMatrixIdentity());
+
+	// モーションデータ更新
+	for (auto& bonemotion : Model->MotionData)
+	{
+		auto node = m_BoneNodeTable[bonemotion.first];
+		
+		// 合致するものを探す
+		auto motions = bonemotion.second;
+		// リバースイテレーターで逆順を取得
+		auto rit = std::find_if(
+			motions.rbegin(), motions.rend(),
+			[frameNo](const KeyFrame& motion) {return motion.frameNo == frameNo; });
+
+		// 合地するものがなけらば処理を飛ばす
+		if (rit == motions.rend())
+		{
+			continue;
+		}
+
+		XMFLOAT3& pos = node.startPos;
+
+		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
+			* XMMatrixRotationQuaternion(rit->quaternion)
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);
+		Model->BoneMatrix[node.boneIdx] = mat;
+	}
+	RecursiveMatrixMultiply(Model, &m_BoneNodeTable["センター"], XMMatrixIdentity());
+
+	// マトリクスのコピー
+	std::copy(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), Model->mappedMatrices + 1);
+
+}
+
 HRESULT Object3D::CreateBone(FILE* file, MODEL_DX12* Model)
 {
 	unsigned short boneNum;
@@ -1029,4 +1069,9 @@ void Object3D::CreateLambdaTable()
 	{
 		return LoadFromDDSFile(path.c_str(), DDS_FLAGS_NONE,meta, img);
 	};
+}
+
+void Object3D::PlayAnimation()
+{
+	m_StartTime = timeGetTime();
 }

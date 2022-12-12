@@ -222,6 +222,9 @@ public:
 
     void CreateLambdaTable();
 
+    void PlayAnimation();
+    void MotionUpdate(MODEL_DX12* Model);
+
 
     void UnInit(MODEL_DX12* Model);
 
@@ -234,6 +237,10 @@ private:
 
     // ボーン検索
     std::map<std::string, BoneNode> m_BoneNodeTable;
+
+    // アニメーション開始時のミリ秒
+    DWORD m_StartTime;
+
 
 };
 
