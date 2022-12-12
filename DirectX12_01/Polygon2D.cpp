@@ -81,7 +81,9 @@ void Polygon2D::Init()
 
 	g_Object = new Object3D();
 
-	HRESULT hr = g_Object->CreateModel("Assets/Model/初音ミク.pmd", &m_Model);
+	HRESULT hr = g_Object->CreateModel("Assets/Model/初音ミク.pmd"
+		, "Assets/VMD/motion.vmd"
+		, &m_Model);
 
 	if (FAILED(hr))
 	{

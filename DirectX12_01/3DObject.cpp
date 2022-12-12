@@ -8,7 +8,7 @@ using namespace DirectX;
 std::vector<TEXRGBA> g_Texture(256 * 256);
 
 
-HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
+HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODEL_DX12* Model)
 {
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 
@@ -63,7 +63,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	hr = CreateBone(fp, Model);
 
 	// モーションデータ読み込み
-	hr = LoadVMDData(fopen("Assets/VMD/motion.vmd", "rb"), Model);
+	hr = LoadVMDData(fopen(Motionname, "rb"), Model);
 
 	// 定数バッファー&ビュー生成
 	hr = CreateSceneCBuffer(Model);
@@ -597,9 +597,11 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	srvd.Texture2D.MipLevels = 1;
 
 	// ビュー作成
+	auto materialBufsize = sizeof(MaterialForHlsl);
+	materialBufsize = (materialBufsize + 0xff) & ~0xff;
 	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbvd = {};
 	mat_cbvd.BufferLocation = Model->MaterialBuffer.Get()->GetGPUVirtualAddress();
-	mat_cbvd.SizeInBytes = static_cast<UINT>(Model->sub.materialBufferSize);
+	mat_cbvd.SizeInBytes = materialBufsize;
 
 	// 先頭を記録
 	D3D12_CPU_DESCRIPTOR_HANDLE mat_dHandle = Model->materialDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
@@ -611,7 +613,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 			mat_dHandle);
 
 		mat_dHandle.ptr += inc;
-		mat_cbvd.BufferLocation += Model->sub.materialBufferSize;
+		mat_cbvd.BufferLocation += materialBufsize;
 
 		if (Model->TextureResource[i] == nullptr)
 		{
@@ -739,31 +741,33 @@ std::wstring Object3D::GetWideStringFromString(const std::string& str)
 	return wstr;
 }
 
+ID3D12Resource* Object3D::CreateDefaultTexture(size_t width, size_t height)
+{
+	auto resDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, width, height);
+	auto texHeapProp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
+	ID3D12Resource* buff = nullptr;
+	auto result = DX12Renderer::GetDevice()->CreateCommittedResource(
+		&texHeapProp,
+		D3D12_HEAP_FLAG_NONE,//特に指定なし
+		&resDesc,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		nullptr,
+		IID_PPV_ARGS(&buff)
+	);
+	if (FAILED(result)) {
+		assert(SUCCEEDED(result));
+		return nullptr;
+	}
+	return buff;
+}
+
 ID3D12Resource* Object3D::CreateWhiteTexture()
 {
-	//D3D12_HEAP_PROPERTIES tex_hp = {};
-	//tex_hp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	//tex_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	//tex_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	//tex_hp.VisibleNodeMask = 0;
-
 	CD3DX12_HEAP_PROPERTIES tex_hp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0, 1, 0);
-
-	//D3D12_RESOURCE_DESC rd = {};
-	//rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//rd.Width = 4;
-	//rd.Height = 4;
-	//rd.DepthOrArraySize = 1;
-	//rd.SampleDesc.Count = 1;
-	//rd.SampleDesc.Quality = 0;
-	//rd.MipLevels = 1;
-	//rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 4);
 
-	ID3D12Resource* whiteBuff = nullptr;
+	ID3D12Resource* whiteBuff = CreateDefaultTexture(4, 4);
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
 		&tex_hp,
@@ -796,29 +800,10 @@ ID3D12Resource* Object3D::CreateWhiteTexture()
 
 ID3D12Resource* Object3D::CreateBlackTexture()
 {
-	//D3D12_HEAP_PROPERTIES tex_hp = {};
-	//tex_hp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	//tex_hp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	//tex_hp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	//tex_hp.VisibleNodeMask = 0;
-
 	CD3DX12_HEAP_PROPERTIES tex_hp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0, 1, 0);
-
-	//D3D12_RESOURCE_DESC rd = {};
-	//rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//rd.Width = 4;
-	//rd.Height = 4;
-	//rd.DepthOrArraySize = 1;
-	//rd.SampleDesc.Count = 1;
-	//rd.SampleDesc.Quality = 0;
-	//rd.MipLevels = 1;
-	//rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;
-
 	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 4);
 
-	ID3D12Resource* blackBuff = nullptr;
+	ID3D12Resource* blackBuff = CreateDefaultTexture(4, 4);
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
 		&tex_hp,
@@ -851,18 +836,6 @@ ID3D12Resource* Object3D::CreateBlackTexture()
 
 ID3D12Resource* Object3D::CreateGrayGradationTexture()
 {
-	//D3D12_RESOURCE_DESC rd = {};
-	//rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	//rd.Width = 4;
-	//rd.Height = 256;
-	//rd.DepthOrArraySize = 1;
-	//rd.SampleDesc.Count = 1;
-	//rd.SampleDesc.Quality = 0;
-	//rd.MipLevels = 1;
-	//rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;
-
 	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 256);
 
 	// 上が白くて下が黒いテクスチャ作成
@@ -876,7 +849,7 @@ ID3D12Resource* Object3D::CreateGrayGradationTexture()
 		--c;
 	}
 
-	ID3D12Resource* gradBuff = nullptr;
+	ID3D12Resource* gradBuff = CreateDefaultTexture(4, 256);
 
 	HRESULT hr = gradBuff->WriteToSubresource(
 		0,

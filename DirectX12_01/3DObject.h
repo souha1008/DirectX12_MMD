@@ -81,8 +81,8 @@ typedef struct
 {
     XMFLOAT3 diffuse;   // ディフューズ色
     float alpha;        // ディフューズ
-    float specularity;   // スペキュラの強さ
     XMFLOAT3 specular;  // スペキュラ色
+    float specularity;   // スペキュラの強さ
     XMFLOAT3 ambient;   // アンビエント色
 
 }MaterialForHlsl;
@@ -178,7 +178,7 @@ class Object3D
 {
 public:
     // モデル生成（全部入り）
-    HRESULT CreateModel(const char* Filename, MODEL_DX12* Model);
+    HRESULT CreateModel(const char* Filename, const char* Motionname, MODEL_DX12* Model);
 
     // バーテックスバッファ生成
     HRESULT CreateVertexBuffer(MODEL_DX12* Model, std::vector<PMDVertex> vertices);
@@ -218,6 +218,7 @@ public:
     std::string GetExtension(const std::string& path);
     std::pair<std::string, std::string> SplitFileName(const std::string& path, const char splitter = '*');
     
+    ID3D12Resource* CreateDefaultTexture(size_t width, size_t height);
     ID3D12Resource* CreateWhiteTexture();
     ID3D12Resource* CreateBlackTexture();
     ID3D12Resource* CreateGrayGradationTexture();

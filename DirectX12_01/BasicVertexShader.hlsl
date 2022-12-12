@@ -5,7 +5,6 @@ cbuffer SceneView : register(b0)   // 定数バッファー
 	matrix view;    // ビュー
 	matrix proj;    // プロジェクション
 	float3 eye;     // 視線
-
 };
 
 cbuffer Transform : register(b1)
@@ -29,7 +28,7 @@ OUTPUT BasicVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOO
 	float w = weight / 100.0f;
 
 	// 行列の線形補間
-	matrix bm = bones[boneno[0]] * w + bones[boneno[1]] * (1 - w);
+	matrix bm = bones[boneno[0]] * w + bones[boneno[1]] * (1.0f - w);
 
 	// 線形補間した行列を乗算
 	pos = mul(bm, pos);
@@ -44,7 +43,7 @@ OUTPUT BasicVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOO
 
 	output.uv = uv;
 
-	output.ray = normalize(pos.xyz - mul(view, eye));	// 視線ベクトル
+	output.ray = normalize(output.pos.xyz - mul(view, eye));	// 視線ベクトル
 	return output;
 	//return float4(0, 0, 0, 1);
 }

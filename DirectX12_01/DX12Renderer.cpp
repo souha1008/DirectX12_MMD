@@ -115,7 +115,7 @@ void DX12Renderer::Begin()
 	m_GCmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
 
 	// ‰æ–ÊƒNƒŠƒA
-	FLOAT clear_color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	FLOAT clear_color[4] = { 0.4f, 0.4f, 0.4f, 1.0f };
 	m_GCmdList->ClearRenderTargetView(rtvH, clear_color, 0, nullptr);
 	m_GCmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 

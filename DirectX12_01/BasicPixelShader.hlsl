@@ -28,22 +28,22 @@ float4 BasicPS(OUTPUT input) : SV_TARGET
 
 	// 光の反射ベクトル
 	float3 refLight = normalize(reflect(light, input.normal.xyz));
-	float specularB = pow(saturate(dot(refLight, -input.ray)), specular.a + 800);
+	float specularB = pow(saturate(dot(refLight, -input.ray)), specular.a);
 
 	// スフィアマップ用uv
 	float2 sphereMapUV = input.vnormal.xy;
 	sphereMapUV = (input.vnormal.xy + float2(1, -1)) * float2(0.5, -0.5);
 
 	// テクスチャカラー
+	float4 ambColor = float4(ambient * 0.6, 1);
 	float4 Texcolor = tex.Sample(smp, input.uv);
 
-	return max(saturate(toonDif	// 輝度
-		* diffuse	// ディフューズ色
+	return saturate((toonDif	// 輝度
+		* diffuse + ambColor)	// ディフューズ色
 		* Texcolor	// テクスチャカラー
-		* sph.Sample(smp, sphereMapUV))	// スフィアマップ（乗算）
-		+ saturate(spa.Sample(smp, sphereMapUV) * Texcolor	// スフィアマップ(加算)
-		+ float4(specularB * float3(1, 1, 1) , 1))	// スペキュラ
-		, float4(Texcolor * ambient, 1));		// アンビエント
+		* sph.Sample(smp, sphereMapUV)	// スフィアマップ（乗算）
+		+ spa.Sample(smp, sphereMapUV)	// スフィアマップ(加算)
+		+ float4(specularB * specular.rgb, 1));	// スペキュラ
 
 	//return float4(diffuseB, diffuseB, diffuseB, 1)
 	//	* diffuse
