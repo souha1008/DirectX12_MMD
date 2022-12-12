@@ -63,7 +63,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	hr = CreateBone(fp, Model);
 
 	// モーションデータ読み込み
-	hr = LoadVMDData(fopen("Assets/VMD/swing.vmd", "rb"), Model);
+	hr = LoadVMDData(fopen("Assets/VMD/swing2.vmd", "rb"), Model);
 
 	// 定数バッファー&ビュー生成
 	hr = CreateSceneCBuffer(Model);
@@ -936,7 +936,7 @@ void Object3D::MotionUpdate(MODEL_DX12* Model)
 		// リバースイテレーターで逆順を取得
 		auto rit = std::find_if(
 			motions.rbegin(), motions.rend(),
-			[frameNo](const KeyFrame& motion) {return motion.frameNo == frameNo; });
+			[frameNo](const KeyFrame& motion) {return motion.frameNo <= frameNo; });
 
 		// 合地するものがなけらば処理を飛ばす
 		if (rit == motions.rend())
@@ -944,10 +944,28 @@ void Object3D::MotionUpdate(MODEL_DX12* Model)
 			continue;
 		}
 
+		// t = 現在フレーム - 直前キーフレーム / 直後キーフレーム - 直前キーフレーム
+
+		XMMATRIX rotation;
+		auto it = rit.base();
+
+		if (it != motions.end())
+		{
+			auto t = static_cast<float>(frameNo - rit->frameNo) / static_cast<float>(it->frameNo - rit->frameNo);
+			rotation = XMMatrixRotationQuaternion(rit->quaternion)
+				* (1 - t)
+				+ XMMatrixRotationQuaternion(it->quaternion)
+				* t;
+		}
+		else
+		{
+			rotation = XMMatrixRotationQuaternion(rit->quaternion);
+		}
+
 		XMFLOAT3& pos = node.startPos;
 
 		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
-			* XMMatrixRotationQuaternion(rit->quaternion)
+			* rotation
 			* XMMatrixTranslation(pos.x, pos.y, pos.z);
 		Model->BoneMatrix[node.boneIdx] = mat;
 	}
