@@ -240,7 +240,7 @@ private:
 
     // アニメーション開始時のミリ秒
     DWORD m_StartTime;
-
+    unsigned int m_duration;
 
 };
 

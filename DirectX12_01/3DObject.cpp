@@ -923,6 +923,13 @@ void Object3D::MotionUpdate(MODEL_DX12* Model)
 	auto elapsedTime = timeGetTime() - m_StartTime;	// 経過時間
 	unsigned int frameNo = 30 * (elapsedTime / 1000.0f);	// 経過フレーム数計算
 
+	// ループするため
+	if (frameNo > m_duration)
+	{
+		m_StartTime = timeGetTime();
+		frameNo = 0;
+	}
+
 	// 行列情報クリア（クリアしていないと前フレームのポーズが重ねがけされてモデルが壊れる）
 	std::fill(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), XMMatrixIdentity());
 
@@ -1039,6 +1046,7 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 			+ sizeof(motion.quaternion)
 			+ sizeof(motion.bezier),
 			1, file);
+		m_duration = std::max<unsigned int>(m_duration, motion.frameNo);
 	}
 
 	for (auto& vmdmotion : vmdMotionData)
@@ -1057,8 +1065,13 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 	for (auto& bonemotion : Model->MotionData)
 	{
 		// アニメーションデータからボーン名検索
-		auto node = m_BoneNodeTable[bonemotion.first];
+		auto itBonenode = m_BoneNodeTable.find(bonemotion.first);
+		if (itBonenode == m_BoneNodeTable.end())
+		{
+			continue;
+		}
 
+		auto& node = itBonenode->second;
 		auto& pos = node.startPos;
 		auto mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
 				 * XMMatrixRotationQuaternion(bonemotion.second[0].quaternion)
