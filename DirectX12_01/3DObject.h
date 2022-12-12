@@ -128,8 +128,10 @@ struct KeyFrame
 {
     unsigned int frameNo;   // アニメーション開始からのフレーム数
     XMVECTOR quaternion;    // クォータニオン
+    XMFLOAT2 p1, p2;
 
-    KeyFrame(unsigned int fno, XMVECTOR& q) : frameNo(fno), quaternion(q)
+    KeyFrame(unsigned int fno, XMVECTOR& q, const XMFLOAT2& ip1, const XMFLOAT2& ip2) 
+        : frameNo(fno), quaternion(q), p1(ip1), p2(ip2)
     {}
 };
 
@@ -229,6 +231,8 @@ public:
     void UnInit(MODEL_DX12* Model);
 
 private:
+    float GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n);
+
     // ロード用ラムダ
     std::map<std::string, LoadLambda_t> m_loadLambdaTable;
 
