@@ -63,7 +63,7 @@ HRESULT Object3D::CreateModel(const char* Filename, MODEL_DX12* Model)
 	hr = CreateBone(fp, Model);
 
 	// モーションデータ読み込み
-	hr = LoadVMDData(fopen("Assets/VMD/swing2.vmd", "rb"), Model);
+	hr = LoadVMDData(fopen("Assets/VMD/motion.vmd", "rb"), Model);
 
 	// 定数バッファー&ビュー生成
 	hr = CreateSceneCBuffer(Model);
@@ -952,10 +952,14 @@ void Object3D::MotionUpdate(MODEL_DX12* Model)
 		if (it != motions.end())
 		{
 			auto t = static_cast<float>(frameNo - rit->frameNo) / static_cast<float>(it->frameNo - rit->frameNo);
-			rotation = XMMatrixRotationQuaternion(rit->quaternion)
-				* (1 - t)
-				+ XMMatrixRotationQuaternion(it->quaternion)
-				* t;
+			// 線形補間
+			//rotation = XMMatrixRotationQuaternion(rit->quaternion)
+			//	* (1 - t)
+			//	+ XMMatrixRotationQuaternion(it->quaternion)
+			//	* t;
+
+			// 球面線形補間
+			rotation = XMMatrixRotationQuaternion(XMQuaternionSlerp(rit->quaternion, it->quaternion, t));
 		}
 		else
 		{
@@ -1043,10 +1047,18 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 		Model->MotionData[vmdmotion.boneName].emplace_back(KeyFrame(vmdmotion.frameNo, q));
 	}
 
+	for (auto& motion : Model->MotionData)
+	{
+		sort(motion.second.begin(), motion.second.end(),
+			[](const KeyFrame& lval, const KeyFrame& rval) {return lval.frameNo <= rval.frameNo; });
+	}
+
 	// クォータニオン適応
 	for (auto& bonemotion : Model->MotionData)
 	{
+		// アニメーションデータからボーン名検索
 		auto node = m_BoneNodeTable[bonemotion.first];
+
 		auto& pos = node.startPos;
 		auto mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
 				 * XMMatrixRotationQuaternion(bonemotion.second[0].quaternion)
