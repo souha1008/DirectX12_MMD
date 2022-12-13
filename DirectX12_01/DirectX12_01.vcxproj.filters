@@ -16,6 +16,9 @@
     <ClCompile Include="3DObject.cpp">
       <Filter>ソースファイル\メインモジュール</Filter>
     </ClCompile>
+    <ClCompile Include="Audio.cpp">
+      <Filter>ソースファイル\メインモジュール</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -40,6 +43,9 @@
       <Filter>ヘッダーファイル\オブジェクト\2Dオブジェクト</Filter>
     </ClInclude>
     <ClInclude Include="3DObject.h">
+      <Filter>ヘッダーファイル\モジュール</Filter>
+    </ClInclude>
+    <ClInclude Include="Audio.h">
       <Filter>ヘッダーファイル\モジュール</Filter>
     </ClInclude>
   </ItemGroup>

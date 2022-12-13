@@ -27,62 +27,11 @@ MODEL_DX12 m_Model;
 
 void Polygon2D::Init()
 {
-	/*
-	//// モデルロード
-	//char signature[3] = {};	// シグネチャ
-	//auto fp = fopen("Model/初音ミク.pmd", "rb");
-	//fread(signature, sizeof(signature), 1, fp);
-	//fread(&m_PMDheader, sizeof(m_PMDheader), 1, fp);
-	//
-	//// 頂点読み込み
-	//constexpr size_t pmdVertex_size = 38;	// 1頂点あたりのサイズ
-	//unsigned int vertNum;	// 頂点数
-	//fread(&vertNum, sizeof(vertNum), 1, fp);
-
-	//std::vector<unsigned char> vertices(vertNum * pmdVertex_size);	// バッファー確保
-	//fread(vertices.data(), vertices.size(), 1, fp);
-
-	//fclose(fp);
-
-
-
-	//// 頂点バッファー生成
-	//HRESULT hr = CreateVertexBuffer();
-
-	//// 頂点バッファービュー設定
-	//hr = SettingVertexBufferView();
-
-	//// インデックスバッファー生成
-	//unsigned short Index[] = { 0,1,2, 2,1,3 };	// インデックス
-	//hr = CreateIndexBuffer(Index);
-
-	//// インデックスバッファビュー設定
-	//hr = SettingIndexBufferView(Index);
-
-	//// テクスチャデータセット
-	//hr = CreateTextureData();
-
-	//// 定数バッファー生成
-	//hr = CreateConstBuffer();
-
-	//// ディスクリプター生成
-	//hr = CreateBasicDescriptorHeap();
-	//
-	//// シェーダーリソースビュー生成
-	//hr = CreateShaderResourceView();
-
-
-
-	//// 定数バッファービュー設定
-	//D3D12_CPU_DESCRIPTOR_HANDLE basicHeapHandle = m_basicDescHeap->GetCPUDescriptorHandleForHeapStart();
-	//basicHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	//hr = SettingConstBufferView(&basicHeapHandle);
-	*/
 
 	g_Object = new Object3D();
 
-	HRESULT hr = g_Object->CreateModel("Assets/Model/初音ミク.pmd"
-		, "Assets/VMD/motion.vmd"
+	HRESULT hr = g_Object->CreateModel("Assets/Model/シンプルモデル/初音ミク.pmd"
+		, "Assets/VMD/Unknown.vmd"
 		, &m_Model);
 
 	if (FAILED(hr))
@@ -100,7 +49,7 @@ void Polygon2D::Uninit()
 
 void Polygon2D::Update()
 {
-	PolygonRotation();
+	//PolygonRotation();
 
 	g_Object->MotionUpdate(&m_Model);
 
@@ -399,9 +348,9 @@ HRESULT Polygon2D::CreateShaderResourceView()
 void Polygon2D::PolygonRotation()
 {
 	g_angle += 0.01f;
-	//XMStoreFloat4x4(&m_Model.SceneMatrix->world, XMMatrixRotationY(g_angle));
-	//XMStoreFloat4x4(&m_Model.MapMatrix->view)
+	//XMStoreFloat4x4(&m_Model.mappedMatrices[0], XMMatrixRotationY(g_angle));
 	//m_Model.MapMatrix->viewproj = m_Model.viewMat * m_Model.projMat;
+	m_Model.mappedMatrices[0] = XMMatrixRotationY(g_angle);
 }
 
 void Polygon2D::PolygonMove()

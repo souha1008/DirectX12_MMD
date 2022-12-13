@@ -10,7 +10,7 @@ std::vector<TEXRGBA> g_Texture(256 * 256);
 
 HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODEL_DX12* Model)
 {
-	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
+	//HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 
 	// ラムダ式初期化
 	CreateLambdaTable();
@@ -45,7 +45,7 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 	Model->sub.indecesNum = indicesNum;
 
 	// 頂点バッファー作成
-	hr = CreateVertexBuffer(Model, vertices);
+	HRESULT hr = CreateVertexBuffer(Model, vertices);
 
 	// 頂点バッファービュー設定
 	hr = SettingVertexBufferView(Model, vertices, pmdVertex_size);
