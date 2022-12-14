@@ -113,6 +113,18 @@
     <FxCompile Include="BasicVertexShader.hlsl">
       <Filter>ソースファイル\シェーダー</Filter>
     </FxCompile>
+    <FxCompile Include="RimLightingPS.hlsl">
+      <Filter>ソースファイル\シェーダー</Filter>
+    </FxCompile>
+    <FxCompile Include="RimLightingVS.hlsl">
+      <Filter>ソースファイル\シェーダー</Filter>
+    </FxCompile>
+    <FxCompile Include="LightingVertexShader.hlsl">
+      <Filter>ソースファイル\シェーダー</Filter>
+    </FxCompile>
+    <FxCompile Include="LightingPixelShader.hlsl">
+      <Filter>ソースファイル\シェーダー</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicShaderHeader.hlsli">

@@ -1,6 +1,5 @@
 #pragma once
 
-using namespace DirectX;
 // ロード用ラムダ式
 using LoadLambda_t = std::function<HRESULT(const std::wstring& path, TexMetadata*, ScratchImage&)>;
 

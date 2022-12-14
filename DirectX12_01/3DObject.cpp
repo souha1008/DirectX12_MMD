@@ -248,6 +248,7 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 	auto heapHandle = Model->transformDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cdvDesc, heapHandle);
 
+	
 	return hr;
 }
 

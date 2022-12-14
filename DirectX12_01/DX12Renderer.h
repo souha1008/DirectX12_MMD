@@ -2,6 +2,17 @@
 class DX12Renderer
 {
 public:
+
+    // 構造体
+    struct LIGHT
+    {
+        BOOL    Enable;
+        BOOL    Dummy[3];
+        XMVECTOR    Direction;
+        XMFLOAT4    Diffuse;
+        XMFLOAT4    Ambient;
+    };
+
     static void Init();     // 初期化
     static void Uninit();   // 終了
     static void Begin();    // 描画開始処理
@@ -25,6 +36,9 @@ public:
     static HRESULT CreateRootSignature();
     static HRESULT CreatePipelineState();
 
+    static HRESULT CreateLightConstBuffer();
+    static HRESULT SetLight(LIGHT light);
+
 private:
     static ComPtr<ID3D12Device> m_Device;
     static ComPtr<IDXGIFactory6> m_DXGIFactry;
@@ -37,6 +51,10 @@ private:
     static ComPtr<ID3D12DescriptorHeap> m_DescHeap;
     static ComPtr<ID3D12RootSignature> m_RootSignature;
     static ComPtr<ID3D12PipelineState> m_PipelineState;
+
+    static ComPtr<ID3D12Resource> m_LightCBuffer;
+    static ComPtr<ID3D12DescriptorHeap> m_LightDescHeap;
+    static LIGHT* m_mapLight;
 
     static std::vector<ID3D12Resource*> m_BackBuffers;
 

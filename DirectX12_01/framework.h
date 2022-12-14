@@ -28,6 +28,8 @@ using namespace Microsoft::WRL;
 #include <D3Dcompiler.h>
 #include <DirectXTex.h>
 
+using namespace DirectX;
+
 #include <assert.h>
 #include <vector>
 #include <iostream>

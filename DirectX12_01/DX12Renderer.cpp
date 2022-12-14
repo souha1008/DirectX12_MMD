@@ -17,6 +17,9 @@ ComPtr<ID3D12Fence> DX12Renderer::m_Fence = nullptr;
 ComPtr<ID3DBlob> DX12Renderer::m_VSBlob = nullptr;
 ComPtr<ID3DBlob> DX12Renderer::m_PSBlob = nullptr;
 ComPtr<ID3DBlob> DX12Renderer::m_ErrorBlob = nullptr;
+ComPtr<ID3D12Resource> DX12Renderer::m_LightCBuffer = nullptr;
+ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_LightDescHeap = nullptr;
+DX12Renderer::LIGHT* DX12Renderer::m_mapLight = nullptr;
 UINT64 DX12Renderer::m_FenceVal = 0;
 D3D12_RESOURCE_BARRIER DX12Renderer::m_Barrier = {};
 std::vector<ID3D12Resource*> DX12Renderer::m_BackBuffers;
@@ -57,22 +60,14 @@ void DX12Renderer::Init()
 	// パイプラインステート作成
 	hr = CreatePipelineState();
 
+	// ライト作成
+	hr = CreateLightConstBuffer();
+
 	// ビューポート
 	g_Viewport = CD3DX12_VIEWPORT(m_BackBuffers[0]);	// バックバッファーから自動計算
 
-	//g_Viewport.Width = SCREEN_WIDTH;		//出力先の幅(ピクセル数)
-	//g_Viewport.Height = SCREEN_HEIGHT;		//出力先の高さ(ピクセル数)
-	//g_Viewport.TopLeftX = 0;				//出力先の左上座標X
-	//g_Viewport.TopLeftY = 0;				//出力先の左上座標Y
-	//g_Viewport.MaxDepth = 1.0f;				//深度最大値
-	//g_Viewport.MinDepth = 0.0f;				//深度最小値
-
 	// 切り抜き
 	g_Scissorect = CD3DX12_RECT(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-	//g_Scissorect.top = 0;
-	//g_Scissorect.bottom = g_Scissorect.top + SCREEN_HEIGHT;
-	//g_Scissorect.left = 0;
-	//g_Scissorect.right = g_Scissorect.left + SCREEN_WIDTH;
 
 }
 
@@ -129,6 +124,11 @@ void DX12Renderer::Begin()
 	// パイプラインセット
 	m_GCmdList->SetPipelineState(m_PipelineState.Get());
 
+	// ライトのデスクリプターセット
+	ID3D12DescriptorHeap* light_dh[] = { m_LightDescHeap.Get() };
+	m_GCmdList.Get()->SetDescriptorHeaps(1, light_dh);
+	auto light_handle = m_LightDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	m_GCmdList.Get()->SetGraphicsRootDescriptorTable(3, light_handle);
 }
 
 void DX12Renderer::End()
@@ -425,37 +425,23 @@ HRESULT DX12Renderer::CreateRootSignature()
 
 	// ディスクリプタレンジテーブル作成
 	// 定数(b0)（ビュープロジェクション用）
-	CD3DX12_DESCRIPTOR_RANGE dr[4] = {};
+	CD3DX12_DESCRIPTOR_RANGE dr[5] = {};
 	dr[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);	// RangeType, NumDescriptor, BaseShaderRegister
-	
-	//dr[0].NumDescriptors = 1;
-	//dr[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	//dr[0].BaseShaderRegister = 0;
-	//dr[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	
 	// 定数(b1)（ワールド・ボーン用）
 	dr[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-	//dr[1].NumDescriptors = 1;
-	//dr[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	//dr[1].BaseShaderRegister = 1;
-	//dr[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// マテリアル(b2)
 	dr[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
-	//dr[2].NumDescriptors = 1;	
-	//dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	//dr[2].BaseShaderRegister = 2;
-	//dr[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	// テクスチャ用（マテリアルとペア）
 	dr[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
-	//dr[3].NumDescriptors = 4;	// テクスチャとsphとspaとトゥーン
-	//dr[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	//dr[3].BaseShaderRegister = 0;
-	//dr[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	// ライト用
+	dr[4].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 3);
 
 	// ルートパラメータ作成
-	D3D12_ROOT_PARAMETER rootparam[3] = {};
+	D3D12_ROOT_PARAMETER rootparam[4] = {};
 	//rootparam[0].InitAsDescriptorTable(1, &dr[0]);	// パラメータータイプはデスクリプターテーブルで、レンジ数は1、レンジのアドレス
 	
 	rootparam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -477,20 +463,14 @@ HRESULT DX12Renderer::CreateRootSignature()
 	rootparam[2].DescriptorTable.pDescriptorRanges = &dr[2];
 	rootparam[2].DescriptorTable.NumDescriptorRanges = 2;
 
+	rootparam[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootparam[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootparam[3].DescriptorTable.pDescriptorRanges = &dr[4];
+	rootparam[3].DescriptorTable.NumDescriptorRanges = 1;
+
 	CD3DX12_STATIC_SAMPLER_DESC sd[2] = {};
 
 	sd[0].Init(0);	// シェーダーレジスターは0番
-
-	//sd[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 横方向の繰り返し
-	//sd[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 縦方向の繰り返し
-	//sd[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;	// 奥行きの繰り返し
-	//sd[0].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;	// ボーダーは黒
-	//sd[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;	// 線形補間
-	//sd[0].MaxLOD = D3D12_FLOAT32_MAX;	// ミップマップ最大値
-	//sd[0].MinLOD = 0.0f;	// ミップマップ最小値
-	//sd[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーから見える
-	//sd[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;	// リサンプリングしない
-	//sd[0].ShaderRegister = 0;
 
 	sd[1].Init(1, D3D12_FILTER_ANISOTROPIC, D3D12_TEXTURE_ADDRESS_MODE_CLAMP, D3D12_TEXTURE_ADDRESS_MODE_CLAMP);	// シェーダーレジスターは1番、UVはクランプ
 	
@@ -498,7 +478,7 @@ HRESULT DX12Renderer::CreateRootSignature()
 	D3D12_ROOT_SIGNATURE_DESC rsd = {};
 	rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rsd.pParameters = rootparam;	// ルートパラメータの先頭アドレス
-	rsd.NumParameters = 3;			// ルートパラメータ数
+	rsd.NumParameters = 4;			// ルートパラメータ数
 	rsd.pStaticSamplers = sd;		// サンプラーステートの先頭アドレス
 	rsd.NumStaticSamplers = 2;		// サンプラーステート数
 
@@ -515,10 +495,10 @@ HRESULT DX12Renderer::CreatePipelineState()
 
 	// 頂点シェーダー読み込み
 	hr = D3DCompileFromFile(
-		L"BasicVertexShader.hlsl",
+		L"LightingVertexShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"BasicVS","vs_5_0",
+		"LightingVS","vs_5_0",
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
 		0,
 		m_VSBlob.ReleaseAndGetAddressOf(), m_ErrorBlob.ReleaseAndGetAddressOf());
@@ -539,10 +519,10 @@ HRESULT DX12Renderer::CreatePipelineState()
 
 	// ピクセルシェーダー読み込み
 	hr = D3DCompileFromFile(
-		L"BasicPixelShader.hlsl",
+		L"LightingPixelShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"BasicPS", "ps_5_0",
+		"LightingPS", "ps_5_0",
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
 		0,
 		m_PSBlob.ReleaseAndGetAddressOf(), m_ErrorBlob.ReleaseAndGetAddressOf()
@@ -593,10 +573,6 @@ HRESULT DX12Renderer::CreatePipelineState()
 	// グラフィックパイプラインステート作成
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsd = {};
 	gpsd.pRootSignature = m_RootSignature.Get();
-	//gpsd.VS.pShaderBytecode = m_VSBlob->GetBufferPointer();
-	//gpsd.VS.BytecodeLength = m_VSBlob->GetBufferSize();
-	//gpsd.PS.pShaderBytecode = m_PSBlob->GetBufferPointer();
-	//gpsd.PS.BytecodeLength = m_PSBlob->GetBufferSize();
 	gpsd.VS = CD3DX12_SHADER_BYTECODE(m_VSBlob.Get());
 	gpsd.PS = CD3DX12_SHADER_BYTECODE(m_PSBlob.Get());
 
@@ -609,36 +585,13 @@ HRESULT DX12Renderer::CreatePipelineState()
 	rtbd.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	rtbd.LogicOpEnable = false;		// 論理演算は使用しない
 
-	// ブレンドステート
-	//gpsd.BlendState.AlphaToCoverageEnable = false;
-	//gpsd.BlendState.IndependentBlendEnable = false;
-	//gpsd.BlendState.RenderTarget[0] = rtbd;
-
 	// ブレンドステート省略
 	gpsd.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-
-	// ラスタライザー
-	//gpsd.RasterizerState.MultisampleEnable = false;//まだアンチェリは使わない
-	//gpsd.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;//カリングしない
-	//gpsd.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;//中身を塗りつぶす
-	//gpsd.RasterizerState.DepthClipEnable = true;//深度方向のクリッピングは有効に
-	//gpsd.RasterizerState.FrontCounterClockwise = false;
-	//gpsd.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-	//gpsd.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	//gpsd.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	//gpsd.RasterizerState.AntialiasedLineEnable = false;
-	//gpsd.RasterizerState.ForcedSampleCount = 0;
-	//gpsd.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
 	// ラスタライザーステート省略
 	gpsd.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	gpsd.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;//カリングしない
 	
-	// 深度バッファーの設定
-	//gpsd.DepthStencilState.DepthEnable = true;
-	//gpsd.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	//gpsd.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;	// 小さいほう採用
-	//gpsd.DepthStencilState.StencilEnable = false;
 	
 	// 深度バッファー省略
 	gpsd.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
@@ -660,4 +613,56 @@ HRESULT DX12Renderer::CreatePipelineState()
 	hr = m_Device->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_PipelineState.ReleaseAndGetAddressOf()));
 
 	return hr;
+}
+
+HRESULT DX12Renderer::CreateLightConstBuffer()
+{
+	auto bufferSize = sizeof(LIGHT);
+	bufferSize = (bufferSize + 0xff) & ~0xff;
+	CD3DX12_HEAP_PROPERTIES hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
+
+	HRESULT hr = m_Device->CreateCommittedResource(
+		&hp,
+		D3D12_HEAP_FLAG_NONE,
+		&rd,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_LightCBuffer.ReleaseAndGetAddressOf()));
+
+	
+	DX12Renderer::LIGHT light;
+	light.Enable = true;
+	light.Direction = XMVECTOR{ 1.0f, -1.0f, 1.0f, 0.0f };
+	XMVector4Normalize(light.Direction);
+	light.Ambient = XMFLOAT4{ 0.1f, 0.1f, 0.1f, 1.0f };
+	light.Diffuse = XMFLOAT4{ 1.0f, -1.0f, 1.0f, 1.0f };
+
+	hr = m_LightCBuffer.Get()->Map(0, nullptr, (void**)&m_mapLight);
+	SetLight(light);
+
+	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;	// シェーダーから見える
+	dhd.NodeMask = 0;	// マスク0
+	dhd.NumDescriptors = 1;	// ビューは今のところ１つだけ
+	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	hr = m_Device.Get()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(m_LightDescHeap.ReleaseAndGetAddressOf()));
+
+	auto heapHandle = m_LightDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
+	cbvd.BufferLocation = m_LightCBuffer.Get()->GetGPUVirtualAddress();
+	cbvd.SizeInBytes = static_cast<UINT>(m_LightCBuffer.Get()->GetDesc().Width);
+	m_Device.Get()->CreateConstantBufferView(&cbvd, heapHandle);
+
+	return hr;
+}
+
+HRESULT DX12Renderer::SetLight(LIGHT light)
+{
+	m_mapLight->Enable = light.Enable;
+	m_mapLight->Direction = light.Direction;
+	m_mapLight->Diffuse = light.Diffuse;
+	m_mapLight->Ambient = light.Ambient;
+	
+	return S_OK;
 }
