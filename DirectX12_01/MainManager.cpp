@@ -50,7 +50,6 @@ void MainManager::Update()
 
 void MainManager::Draw()
 {
-    DX12Renderer::Begin();
 
     DX12Renderer::LIGHT light;
     light.Enable = true;
@@ -58,9 +57,14 @@ void MainManager::Draw()
     XMVector4Normalize(light.Direction);
     light.Ambient = XMFLOAT4{ 0.1f, 0.1f, 0.1f, 1.0f };
     light.Diffuse = XMFLOAT4{ 1.0f, -1.0f, 1.0f, 1.0f };
+    
+
+
     DX12Renderer::SetLight(light);
 
     // ここにオブジェクトの描画
+    DX12Renderer::Begin();
+
     g_Polygon2D->Draw();
 
     DX12Renderer::End();

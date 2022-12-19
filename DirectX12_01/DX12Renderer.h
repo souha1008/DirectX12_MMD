@@ -11,6 +11,9 @@ public:
         XMVECTOR    Direction;
         XMFLOAT4    Diffuse;
         XMFLOAT4    Ambient;
+
+        XMFLOAT4X4    ViewMatrix;
+        XMFLOAT4X4    ProjMatrix;
     };
 
     static void Init();     // 初期化
@@ -38,6 +41,17 @@ public:
 
     static HRESULT CreateLightConstBuffer();
     static HRESULT SetLight(LIGHT light);
+
+    static void BeginDepthShadow()
+    {
+        // バックバッファのインデックスを取得
+        UINT bbIdx = m_SwapChain4->GetCurrentBackBufferIndex();
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvH = m_DescHeap->GetCPUDescriptorHandleForHeapStart();
+        rtvH.ptr += bbIdx * m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        D3D12_CPU_DESCRIPTOR_HANDLE dsvH = m_DSVDescHeap->GetCPUDescriptorHandleForHeapStart();
+        m_GCmdList.Get()->OMSetRenderTargets(0, NULL, false, &dsvH);
+        m_GCmdList.Get()->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    }
 
 private:
     static ComPtr<ID3D12Device> m_Device;

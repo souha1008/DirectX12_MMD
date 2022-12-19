@@ -659,10 +659,15 @@ HRESULT DX12Renderer::CreateLightConstBuffer()
 
 HRESULT DX12Renderer::SetLight(LIGHT light)
 {
+	XMMatrixTranspose(XMLoadFloat4x4(&light.ProjMatrix));
+	XMMatrixTranspose(XMLoadFloat4x4(&light.ViewMatrix));
+
 	m_mapLight->Enable = light.Enable;
 	m_mapLight->Direction = light.Direction;
 	m_mapLight->Diffuse = light.Diffuse;
 	m_mapLight->Ambient = light.Ambient;
+	m_mapLight->ViewMatrix = light.ViewMatrix;
+	m_mapLight->ProjMatrix = light.ProjMatrix;
 	
 	return S_OK;
 }
