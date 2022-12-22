@@ -15,7 +15,7 @@ POLYGON vertex[] =
 };
 
 // テクスチャ情報
-std::vector<TEXRGBA> g_Texture(256 * 256);
+//std::vector<TEXRGBA> g_Texture(256 * 256);
 
 
 
@@ -197,13 +197,13 @@ HRESULT Polygon2D::CreateBasicDescriptorHeap()
 
 HRESULT Polygon2D::CreateTextureData()
 {
-	for (TEXRGBA& rgba : g_Texture)
-	{
-		rgba.R = rand() % 256;
-		rgba.G = rand() % 256;
-		rgba.B = rand() % 256;
-		rgba.A = 255;
-	}
+	//for (TEXRGBA& rgba : g_Texture)
+	//{
+	//	rgba.R = rand() % 256;
+	//	rgba.G = rand() % 256;
+	//	rgba.B = rand() % 256;
+	//	rgba.A = 255;
+	//}
 
 	
 	ScratchImage ScratchImg = {};
