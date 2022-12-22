@@ -40,13 +40,13 @@ public:
     static HRESULT CreatePipelineState();
 
     static HRESULT CreateSceneConstBuffer();
-    static void SetView(XMFLOAT4X4 view) 
+    static void SetView(XMFLOAT4X4* view) 
     {
-        m_MappedSceneMatrix->view = view;
+        m_MappedSceneMatrix->view = *view;
     }
-    static void SetProj(XMFLOAT4X4 proj)
+    static void SetProj(XMFLOAT4X4* proj)
     {
-        m_MappedSceneMatrix->proj = proj;
+        m_MappedSceneMatrix->proj = *proj;
     }
 
     static HRESULT CreateLightConstBuffer();

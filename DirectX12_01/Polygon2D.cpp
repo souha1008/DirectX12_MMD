@@ -3,8 +3,6 @@
 #include "Polygon2D.h"
 #include "3DObject.h"
 
-using namespace DirectX;
-
 // グローバル変数
 
 // 頂点情報
@@ -17,43 +15,24 @@ POLYGON vertex[] =
 };
 
 // テクスチャ情報
-//std::vector<TEXRGBA> g_Texture(256 * 256);
+std::vector<TEXRGBA> g_Texture(256 * 256);
 
-float g_angle = 0.0f;
-float g_posX = 0.0f;
 
-Object3D* g_Object;
-MODEL_DX12 m_Model;
 
 void Polygon2D::Init()
 {
 
-	g_Object = new Object3D();
 
-	HRESULT hr = g_Object->CreateModel("Assets/Model/シンプルモデル/初音ミク.pmd"
-		, "Assets/VMD/Unknown.vmd"
-		, &m_Model);
-
-	if (FAILED(hr))
-	{
-		return;
-	}
-
-	g_Object->PlayAnimation();
 }
 
 void Polygon2D::Uninit()
 {
-	g_Object->UnInit(&m_Model);
+	
 }
 
 void Polygon2D::Update()
 {
-	//PolygonRotation();
-
-	g_Object->MotionUpdate(&m_Model);
-
-	//PolygonMove();
+	
 }
 
 void Polygon2D::Draw()
@@ -62,36 +41,12 @@ void Polygon2D::Draw()
 	DX12Renderer::GetGraphicsCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// 頂点バッファービューセット
-	DX12Renderer::GetGraphicsCommandList()->IASetVertexBuffers(0, 1, &m_Model.vbView);
+	DX12Renderer::GetGraphicsCommandList()->IASetVertexBuffers(0, 1, &m_vbView);
 
 	// インデックスバッファービューセット
-	DX12Renderer::GetGraphicsCommandList()->IASetIndexBuffer(&m_Model.ibView);
+	DX12Renderer::GetGraphicsCommandList()->IASetIndexBuffer(&m_ibView);
+	
 
-	ID3D12DescriptorHeap* trans_dh[] = { m_Model.transformDescHeap.Get() };
-	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, trans_dh);
-	auto transform_handle = m_Model.transformDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
-	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(1, transform_handle);
-
-	// マテリアルのディスクリプタヒープセット
-	ID3D12DescriptorHeap* mdh[] = { m_Model.materialDescHeap.Get() };
-	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, mdh);
-
-	// マテリアル用ディスクリプタヒープの先頭アドレスを取得
-	auto material_handle = m_Model.materialDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
-	unsigned int idxOffset = 0;
-
-	// CBVとSRVとSRVとSRVとSRVで1マテリアルを描画するのでインクリメントサイズを５倍にする
-	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
-
-	for (auto& m : m_Model.material)
-	{
-		DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(2, material_handle);
-		DX12Renderer::GetGraphicsCommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
-
-		// ヒープポインタとインデックスを次に進める
-		material_handle.ptr += cbvsize;
-		idxOffset += m.indicesNum;
-	}
 
 	// 描画処理
 	//DX12Renderer::GetGraphicsCommandList()->DrawIndexedInstanced(m_Model.sub.indecesNum, 1, 0, 0, 0);
@@ -242,13 +197,13 @@ HRESULT Polygon2D::CreateBasicDescriptorHeap()
 
 HRESULT Polygon2D::CreateTextureData()
 {
-	//for (TEXRGBA& rgba : g_Texture)
-	//{
-	//	rgba.R = rand() % 256;
-	//	rgba.G = rand() % 256;
-	//	rgba.B = rand() % 256;
-	//	rgba.A = 255;
-	//}
+	for (TEXRGBA& rgba : g_Texture)
+	{
+		rgba.R = rand() % 256;
+		rgba.G = rand() % 256;
+		rgba.B = rand() % 256;
+		rgba.A = 255;
+	}
 
 	
 	ScratchImage ScratchImg = {};
@@ -340,14 +295,10 @@ HRESULT Polygon2D::CreateShaderResourceView()
 
 void Polygon2D::PolygonRotation()
 {
-	g_angle += 0.01f;
-	//XMStoreFloat4x4(&m_Model.mappedMatrices[0], XMMatrixRotationY(g_angle));
-	//m_Model.MapMatrix->viewproj = m_Model.viewMat * m_Model.projMat;
-	m_Model.mappedMatrices[0] = XMMatrixRotationY(g_angle);
+
 }
 
 void Polygon2D::PolygonMove()
 {
-	g_posX += 0.01f;
-	//m_Model.MapMatrix->world = XMMatrixTranslation(g_posX, 0.0f, 0.0f);
+
 }

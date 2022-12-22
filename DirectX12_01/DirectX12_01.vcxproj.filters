@@ -19,6 +19,9 @@
     <ClCompile Include="Audio.cpp">
       <Filter>ソースファイル\メインモジュール</Filter>
     </ClCompile>
+    <ClCompile Include="Obj_HatsuneMiku.cpp">
+      <Filter>ソースファイル\オブジェクト\3Dオブジェクト</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -47,6 +50,9 @@
     </ClInclude>
     <ClInclude Include="Audio.h">
       <Filter>ヘッダーファイル\モジュール</Filter>
+    </ClInclude>
+    <ClInclude Include="Obj_HatsuneMiku.h">
+      <Filter>ヘッダーファイル\オブジェクト\3Dオブジェクト</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -99,6 +105,12 @@
     </Filter>
     <Filter Include="ソースファイル\シェーダー">
       <UniqueIdentifier>{7d95e3b0-501f-4e81-9ab5-a8d4e27975f3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダーファイル\オブジェクト\3Dオブジェクト">
+      <UniqueIdentifier>{173a4404-c652-40d4-a179-e3aab324e5dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\オブジェクト\3Dオブジェクト">
+      <UniqueIdentifier>{23667ee3-0112-451b-a9f7-a52da57de485}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
