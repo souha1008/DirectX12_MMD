@@ -37,6 +37,8 @@ using namespace DirectX;
 #include <algorithm>
 #include <map>
 #include <unordered_map>
+#include <sstream>
+#include <array>
 
 #pragma warning(push)
 #pragma warning(disable:4005)

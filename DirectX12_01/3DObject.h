@@ -68,6 +68,15 @@ typedef struct
 
 typedef struct
 {
+    uint16_t boneIdx;   // IK対象のボーンを示す
+    uint16_t targetIdx; // ターゲットに近づけるためのボーンインデックス
+    uint16_t iterations; // 試行回数
+    float limit;        // 1回あたりの回転制限
+    std::vector<uint16_t> nodeIdx;  // 間のノード番号
+}PMDIK;
+
+typedef struct
+{
     char boneName[15];      // ボーン名
     unsigned int frameNo;   // フレーム番号
     XMFLOAT3 location;      // 位置
@@ -110,7 +119,9 @@ typedef struct
 
 struct BoneNode
 {
-    int boneIdx = 0;    // ボーンインデックス
+    uint32_t boneIdx = 0;    // ボーンインデックス
+    uint32_t boneType;
+    uint32_t ikParentBone;
     XMFLOAT3 startPos = {0, 0, 0};  // ボーン基準点（回転の中心）
     XMFLOAT3 endPos = { 0, 0, 0 };    // ボーン先端店（実際のスキニングには利用しない）
     std::vector<BoneNode*>  children;   // 子ノード
@@ -120,10 +131,11 @@ struct KeyFrame
 {
     unsigned int frameNo;   // アニメーション開始からのフレーム数
     XMVECTOR quaternion;    // クォータニオン
+    XMFLOAT3 offset;
     XMFLOAT2 p1, p2;
 
-    KeyFrame(unsigned int fno, XMVECTOR& q, const XMFLOAT2& ip1, const XMFLOAT2& ip2) 
-        : frameNo(fno), quaternion(q), p1(ip1), p2(ip2)
+    KeyFrame(unsigned int fno, XMVECTOR& q, XMFLOAT3& ofst, const XMFLOAT2& ip1, const XMFLOAT2& ip2) 
+        : frameNo(fno), quaternion(q), offset(ofst), p1(ip1), p2(ip2)
     {}
 };
 
@@ -159,6 +171,7 @@ typedef struct
     // モーションデータ
     std::unordered_map<std::string, std::vector<KeyFrame>> MotionData;
 
+    std::vector<PMDIK> pmdIKData;
 
 
 }MODEL_DX12;
@@ -195,6 +208,17 @@ public:
 
     // VMDデータ読み込み
     HRESULT LoadVMDData(FILE* file, MODEL_DX12* Model);
+    // IK読み込み
+    HRESULT LoadIK(FILE* file, MODEL_DX12* Model);
+    // nodeindexの数によって場合分け
+    void IKSolve(MODEL_DX12* Model);
+    // CCD-IKによりボーン方向を解決
+    void SolveCCDIK(MODEL_DX12* Model, const PMDIK& ik);
+    // 余弦定理IKによりボーン方向を解決
+    void SolveCosineIK(MODEL_DX12* Model, const PMDIK& ik);
+    // LookAt行列によりボーン方向を解決
+    void SolveLookAtIK(MODEL_DX12* Model, const PMDIK& ik);
+
 
     // ボーンを子の末端まで伝える再帰関数
     void RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat);
@@ -228,6 +252,12 @@ private:
 
     // ボーン検索
     std::map<std::string, BoneNode> m_BoneNodeTable;
+
+    // インデックスから検索しやすいように
+    std::vector<std::string> m_BoneNameArray;
+    
+    //インデックスからノードを検索しやすいようにしておく
+    std::vector<BoneNode*> _boneNodeAddressArray;
 
     // アニメーション開始時のミリ秒
     DWORD m_StartTime;

@@ -7,7 +7,7 @@ void Obj_HatsuneMiku::Init()
     m_Object = new Object3D();
 
     HRESULT hr = m_Object->CreateModel("Assets/Model/シンプルモデル/初音ミク.pmd"
-        , "Assets/VMD/Unknown.vmd"
+        , "Assets/VMD/motion.vmd"
         , &m_Model);
 
     if (FAILED(hr))

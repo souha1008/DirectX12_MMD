@@ -5,7 +5,61 @@
 using namespace DirectX;
 
 // テクスチャ情報
-std::vector<TEXRGBA> g_Texture(256 * 256);
+//std::vector<TEXRGBA> g_Texture(256 * 256);
+
+namespace
+{
+	XMMATRIX LookAtMatrix(const XMVECTOR& lookat, XMFLOAT3& up, XMFLOAT3& right)
+	{
+		// 向かせたい方向（Z軸）
+		XMVECTOR vz = lookat;
+
+		// （向かせたい方向を向かせたときの）仮y軸ベクトル
+		XMVECTOR vy = XMVector3Normalize(XMLoadFloat3(&up));
+
+		//（向かせたい方向を向かせたときの）y軸
+		XMVECTOR vx = XMVector3Normalize(XMVector3Cross(vy, vz));
+		vy = XMVector3Normalize(XMVector3Cross(vz, vx));
+
+		// LookAtとupが同じ方向を向いていたらrightを金順にして作り直す
+		if (std::abs(XMVector3Dot(vy, vz).m128_f32[0]) == 1.0f)
+		{
+			// 仮のx方向を定義
+			vx = XMVector3Normalize(XMLoadFloat3(&right));
+
+			// 向かせたい方向を向かせたときのY軸を計算
+			vy = XMVector3Normalize(XMVector3Cross(vz, vx));
+
+			// 真のx軸を計算
+			vx = XMVector3Normalize(XMVector3Cross(vy, vz));
+
+		}
+
+		XMMATRIX ret = XMMatrixIdentity();
+		ret.r[0] = vx;
+		ret.r[1] = vy;
+		ret.r[2] = vz;
+
+		return ret;
+	}
+
+	XMMATRIX LookAtMatrix(const XMVECTOR& origin, const XMVECTOR& lookat, const XMFLOAT3& up, const XMFLOAT3& right)
+	{
+		return XMMatrixTranspose(LookAtMatrix(origin, up, right)) * LookAtMatrix(lookat, up, right);
+	}
+
+	enum class BoneType
+	{
+		Rotation,		// 回転
+		RotAndMove,		// 回転＆移動
+		IK,				// IK
+		Undefined,		// 未定義
+		IKChild,		// IK影響ボーン
+		RotationChild,	// 回転影響ボーン
+		IKDestination,	// IK接続先
+		Invisible		// 見えないボーン
+	};
+}
 
 
 HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODEL_DX12* Model)
@@ -61,6 +115,8 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 
 	// ボーンの読み込み
 	hr = CreateBone(fp, Model);
+
+	hr = LoadIK(fp, Model);
 
 	// モーションデータ読み込み
 	hr = LoadVMDData(fopen(Motionname, "rb"), Model);
@@ -637,6 +693,10 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	return S_OK;
 }
 
+void Object3D::SolveLookAtIK(MODEL_DX12* Model, const PMDIK& ik)
+{
+}
+
 void Object3D::RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat)
 {
 	Model->BoneMatrix[node->boneIdx] *= mat;
@@ -946,6 +1006,8 @@ HRESULT Object3D::CreateBone(FILE* file, MODEL_DX12* Model)
 	fread(pmdBone.data(), sizeof(PMDBone), boneNum, file);
 
 	std::vector<std::string> boneNames(pmdBone.size());
+	m_BoneNameArray.resize(pmdBone.size());
+	_boneNodeAddressArray.resize(pmdBone.size());
 
 	// ボーンノードマップを作成
 	for (int index = 0; index < pmdBone.size(); ++index)
@@ -955,6 +1017,11 @@ HRESULT Object3D::CreateBone(FILE* file, MODEL_DX12* Model)
 		auto& node = m_BoneNodeTable[pmdbones.boneName];
 		node.boneIdx = index;
 		node.startPos = pmdbones.pos;
+
+		// インデックス検索しやすいように
+		m_BoneNameArray[index] = pmdbones.boneName;
+		_boneNodeAddressArray[index] = &node;
+
 	}
 
 	// 親子関係を構築
@@ -1035,6 +1102,93 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 	}
 
 	return S_OK;
+}
+
+HRESULT Object3D::LoadIK(FILE* file, MODEL_DX12* Model)
+{
+	uint16_t IKNum = 0;
+
+	fread(&IKNum, sizeof(IKNum), 1, file);
+
+	Model->pmdIKData.resize(IKNum);
+
+	for (auto& ik : Model->pmdIKData)
+	{
+		fread(&ik.boneIdx, sizeof(ik.boneIdx), 1, file);
+		fread(&ik.targetIdx, sizeof(ik.targetIdx), 1, file);
+
+		uint8_t chainLen = 0;	// 間にいくつノードがあるか
+		fread(&chainLen, sizeof(chainLen), 1, file);
+		ik.nodeIdx.resize(chainLen);
+		fread(&ik.iterations, sizeof(ik.iterations), 1, file);
+		fread(&ik.limit, sizeof(ik.limit), 1, file);
+
+		if (chainLen == 0)
+		{
+			continue;
+		}
+		fread(ik.nodeIdx.data(), sizeof(ik.nodeIdx[0]), chainLen, file);
+	}
+
+	// デバッグウィンドウにIK出力
+	auto getNameFromIdx = [&](uint16_t idx)->std::string
+	{
+		auto it = find_if(m_BoneNodeTable.begin(),
+			m_BoneNodeTable.end(),
+			[idx](const std::pair<std::string, BoneNode>& obj)
+			{
+				return obj.second.boneIdx == idx;
+			});
+
+		if (it != m_BoneNodeTable.end())
+		{
+			return it->first;
+		}
+		else
+		{
+			return "";
+		}
+	};
+	for (auto& ik : Model->pmdIKData)
+	{
+		std::ostringstream oss;
+		oss << "IKボーン番号=" << ik.boneIdx << "：" << getNameFromIdx(ik.boneIdx) << std::endl;
+
+		for (auto& node : ik.nodeIdx)
+		{
+			oss << "\tノードボーン=" << node << "：" << getNameFromIdx(node) << std::endl;
+		}
+
+		OutputDebugString(oss.str().c_str());
+	}
+
+	return S_OK;
+}
+
+void Object3D::IKSolve(MODEL_DX12* Model)
+{
+	for (auto& ik : Model->pmdIKData)
+	{
+		auto childNodesCount = ik.nodeIdx.size();
+
+		switch (childNodesCount)
+		{
+		case 0:
+			assert(0);
+			continue;
+
+		case 1:	// 間のボーンの数が１のときはLookAtを使用
+			SolveLookAtIK(Model, ik);
+			break;
+
+		case 2: // 間のボーンの数が２のときは余弦定理IK
+			SolveCosineIK(Model, ik);
+			break;
+		default: // 間のボーン数が３以上のときはCCD-IK
+			SolveCCDIK(Model, ik);
+			break;
+		}
+	}
 }
 
 void Object3D::CreateLambdaTable()
