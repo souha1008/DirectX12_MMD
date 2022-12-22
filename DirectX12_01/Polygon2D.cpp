@@ -67,12 +67,12 @@ void Polygon2D::Draw()
 	// インデックスバッファービューセット
 	DX12Renderer::GetGraphicsCommandList()->IASetIndexBuffer(&m_Model.ibView);
 
-	// 視点のデスクリプターヒープセット
-	ID3D12DescriptorHeap* scene_dh[] = { m_Model.sceneDescHeap.Get() };
-	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, scene_dh);
-	// ルートパラメータとディスクリプターヒープの関連付け
-	auto scene_handle = m_Model.sceneDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
-	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, scene_handle);
+	//// 視点のデスクリプターヒープセット
+	//ID3D12DescriptorHeap* scene_dh[] = { m_Model.sceneDescHeap.Get() };
+	//DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, scene_dh);
+	//// ルートパラメータとディスクリプターヒープの関連付け
+	//auto scene_handle = m_Model.sceneDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	//DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, scene_handle);
 
 	ID3D12DescriptorHeap* trans_dh[] = { m_Model.transformDescHeap.Get() };
 	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, trans_dh);

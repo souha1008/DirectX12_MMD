@@ -17,6 +17,9 @@ ComPtr<ID3D12Fence> DX12Renderer::m_Fence = nullptr;
 ComPtr<ID3DBlob> DX12Renderer::m_VSBlob = nullptr;
 ComPtr<ID3DBlob> DX12Renderer::m_PSBlob = nullptr;
 ComPtr<ID3DBlob> DX12Renderer::m_ErrorBlob = nullptr;
+ComPtr<ID3D12Resource> DX12Renderer::m_SceneConstBuffer = nullptr;
+ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_sceneDescHeap = nullptr;
+DX12Renderer::SCENEMATRIX* DX12Renderer::m_MappedSceneMatrix = nullptr;
 ComPtr<ID3D12Resource> DX12Renderer::m_LightCBuffer = nullptr;
 ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_LightDescHeap = nullptr;
 DX12Renderer::LIGHT* DX12Renderer::m_mapLight = nullptr;
@@ -59,6 +62,9 @@ void DX12Renderer::Init()
 	hr = CreateRootSignature();
 	// パイプラインステート作成
 	hr = CreatePipelineState();
+
+	// ビュープロジェクション作成
+	hr = CreateSceneConstBuffer();
 
 	// ライト作成
 	hr = CreateLightConstBuffer();
@@ -124,11 +130,21 @@ void DX12Renderer::Begin()
 	// パイプラインセット
 	m_GCmdList->SetPipelineState(m_PipelineState.Get());
 
+	// ビュー
+	ID3D12DescriptorHeap* scene_dh[] = { m_sceneDescHeap.Get() };
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, scene_dh);
+	auto scene_handle = m_sceneDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, scene_handle);
+
 	// ライトのデスクリプターセット
 	ID3D12DescriptorHeap* light_dh[] = { m_LightDescHeap.Get() };
 	m_GCmdList.Get()->SetDescriptorHeaps(1, light_dh);
 	auto light_handle = m_LightDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
 	m_GCmdList.Get()->SetGraphicsRootDescriptorTable(3, light_handle);
+
+
+
+
 }
 
 void DX12Renderer::End()
@@ -611,6 +627,61 @@ HRESULT DX12Renderer::CreatePipelineState()
 	gpsd.SampleDesc.Quality = 0;//クオリティは最低
 
 	hr = m_Device->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_PipelineState.ReleaseAndGetAddressOf()));
+
+	return hr;
+}
+
+HRESULT DX12Renderer::CreateSceneConstBuffer()
+{
+	auto buffersize = sizeof(SCENEMATRIX);
+	buffersize = (buffersize + 0xff) & ~0xff;
+	CD3DX12_HEAP_PROPERTIES cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);	// d3d12x.h
+	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer(buffersize);		// d3d12x.h
+
+	// 定数バッファ生成
+	HRESULT hr = m_Device.Get()->CreateCommittedResource(
+		&cd_hp,
+		D3D12_HEAP_FLAG_NONE,
+		&cd_buffer,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_SceneConstBuffer.ReleaseAndGetAddressOf()));
+	if (FAILED(hr))
+	{
+		assert(hr);
+		return hr;
+	}
+
+	// GPUにマップ
+	hr = m_SceneConstBuffer.Get()->Map(0, nullptr, (void**)&m_MappedSceneMatrix);
+
+	XMFLOAT3 eye(0, 10, -35); // 視線
+	XMFLOAT3 target(0, 10, 0); // 注視点
+	XMFLOAT3 v_up(0, 1, 0); // 上ベクトル
+	
+	// 書き込み
+	m_MappedSceneMatrix->view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up));
+	m_MappedSceneMatrix->proj = XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
+		static_cast<float>(SCREEN_WIDTH) / static_cast<float>(SCREEN_HEIGHT),//アス比
+		0.1f,//近い方
+		1000.0f//遠い方
+	);
+	m_MappedSceneMatrix->eye = eye;
+
+	// ディスクリプタヒープ作成
+	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
+	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;	// シェーダーから見える
+	dhd.NodeMask = 0;	// マスク0
+	dhd.NumDescriptors = 1;	// ビューは今のところ１つだけ
+	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	hr = m_Device.Get()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(m_sceneDescHeap.ReleaseAndGetAddressOf()));
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
+	cbvd.BufferLocation = m_SceneConstBuffer.Get()->GetGPUVirtualAddress();
+	cbvd.SizeInBytes = static_cast<UINT>(m_SceneConstBuffer.Get()->GetDesc().Width);
+
+	// バッファービュー作成
+	m_Device.Get()->CreateConstantBufferView(&cbvd, m_sceneDescHeap.Get()->GetCPUDescriptorHandleForHeapStart());
 
 	return hr;
 }

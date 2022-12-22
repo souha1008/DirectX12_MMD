@@ -39,6 +39,8 @@ public:
     static HRESULT CreateRootSignature();
     static HRESULT CreatePipelineState();
 
+    static HRESULT CreateSceneConstBuffer();
+
     static HRESULT CreateLightConstBuffer();
     static HRESULT SetLight(LIGHT light);
 
@@ -53,7 +55,16 @@ public:
         m_GCmdList.Get()->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     }
 
+
+
 private:
+    typedef struct
+    {
+        XMMATRIX view;
+        XMMATRIX proj;
+        XMFLOAT3 eye;   // 視線座標
+    }SCENEMATRIX;
+
     static ComPtr<ID3D12Device> m_Device;
     static ComPtr<IDXGIFactory6> m_DXGIFactry;
     static ComPtr<IDXGISwapChain4> m_SwapChain4;
@@ -65,6 +76,10 @@ private:
     static ComPtr<ID3D12DescriptorHeap> m_DescHeap;
     static ComPtr<ID3D12RootSignature> m_RootSignature;
     static ComPtr<ID3D12PipelineState> m_PipelineState;
+
+    static ComPtr<ID3D12Resource> m_SceneConstBuffer;    // ビュー用定数バッファ
+    static ComPtr<ID3D12DescriptorHeap> m_sceneDescHeap;  // ビュー用デスクリプタヒープ
+    static SCENEMATRIX* m_MappedSceneMatrix;    // ビュー用
 
     static ComPtr<ID3D12Resource> m_LightCBuffer;
     static ComPtr<ID3D12DescriptorHeap> m_LightDescHeap;

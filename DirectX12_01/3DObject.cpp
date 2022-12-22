@@ -66,7 +66,7 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 	hr = LoadVMDData(fopen(Motionname, "rb"), Model);
 
 	// 定数バッファー&ビュー生成
-	hr = CreateSceneCBuffer(Model);
+	//hr = CreateSceneCBuffer(Model);
 
 	hr = CreateTransformCBuffer(Model);
 
