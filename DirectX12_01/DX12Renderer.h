@@ -40,6 +40,14 @@ public:
     static HRESULT CreatePipelineState();
 
     static HRESULT CreateSceneConstBuffer();
+    static void SetView(XMFLOAT4X4 view) 
+    {
+        m_MappedSceneMatrix->view = view;
+    }
+    static void SetProj(XMFLOAT4X4 proj)
+    {
+        m_MappedSceneMatrix->proj = proj;
+    }
 
     static HRESULT CreateLightConstBuffer();
     static HRESULT SetLight(LIGHT light);
@@ -60,8 +68,8 @@ public:
 private:
     typedef struct
     {
-        XMMATRIX view;
-        XMMATRIX proj;
+        XMFLOAT4X4 view;
+        XMFLOAT4X4 proj;
         XMFLOAT3 eye;   // éãê¸ç¿ïW
     }SCENEMATRIX;
 

@@ -105,13 +105,6 @@ typedef struct
 
 typedef struct
 {
-    XMMATRIX view;
-    XMMATRIX proj;
-    XMFLOAT3 eye;   // 視線座標
-}SCENEMATRIX;
-
-typedef struct
-{
     XMFLOAT4X4 world; // モデル本体を回転させたり移動させたりする
 }TRANSFORM;
 
@@ -138,7 +131,6 @@ typedef struct
 {
     ComPtr<ID3D12Resource> VertexBuffer;
     ComPtr<ID3D12Resource> IndexBuffer;
-    ComPtr<ID3D12Resource> SceneConstBuffer;
     ComPtr<ID3D12Resource> TransfromConstBuffer;
     ComPtr<ID3D12Resource> TextureBuffer;
     ComPtr<ID3D12Resource> MaterialBuffer;
@@ -154,13 +146,11 @@ typedef struct
     D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー
 
     ComPtr<ID3D12DescriptorHeap> materialDescHeap;
-    ComPtr<ID3D12DescriptorHeap> sceneDescHeap;
     ComPtr<ID3D12DescriptorHeap> transformDescHeap;
 
     TRANSFORM TransformMatrix;
 
     TexMetadata MetaData;
-    SCENEMATRIX* SceneMatrix;
     XMMATRIX* mappedMatrices;
 
     std::vector<MATERIAL> material;
@@ -186,9 +176,6 @@ public:
     // インデックスバッファ生成
     HRESULT CreateIndexBuffer(MODEL_DX12* Model, std::vector<unsigned short> index);
     HRESULT SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned short> index);
-
-    // カメラ用定数バッファ生成
-    HRESULT CreateSceneCBuffer(MODEL_DX12* Model);
 
     // オブジェクト用定数バッファ生成
     HRESULT CreateTransformCBuffer(MODEL_DX12* Model);

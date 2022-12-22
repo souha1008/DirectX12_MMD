@@ -65,11 +65,10 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 	// モーションデータ読み込み
 	hr = LoadVMDData(fopen(Motionname, "rb"), Model);
 
-	// 定数バッファー&ビュー生成
-	//hr = CreateSceneCBuffer(Model);
-
+	// ワールド用定数バッファ作成
 	hr = CreateTransformCBuffer(Model);
 
+	// マテリアル用定数バッファ作成
 	hr = CreateMaterialView(Model);
 	
 	// ファイルクローズ
@@ -148,63 +147,6 @@ HRESULT Object3D::SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned
 	Model->ibView.Format = DXGI_FORMAT_R16_UINT;
 	Model->ibView.SizeInBytes = static_cast<UINT>(index.size() * sizeof(index[0]));
 	return S_OK;
-}
-
-HRESULT Object3D::CreateSceneCBuffer(MODEL_DX12* Model)
-{
-	auto buffersize = sizeof(SCENEMATRIX);
-	buffersize = (buffersize + 0xff) & ~0xff;
-	CD3DX12_HEAP_PROPERTIES cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);	// d3d12x.h
-	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer(buffersize);		// d3d12x.h
-
-	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
-		&cd_hp,
-		D3D12_HEAP_FLAG_NONE,
-		&cd_buffer,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(Model->SceneConstBuffer.ReleaseAndGetAddressOf()));
-	if (FAILED(hr))
-	{
-		assert(SUCCEEDED(hr));
-		return hr;
-	}
-
-	hr = Model->SceneConstBuffer->Map(0, nullptr, (void**)&Model->SceneMatrix);
-
-	// 視線
-	XMFLOAT3 eye(0, 10, -35);
-	// 注視点
-	XMFLOAT3 target(0, 10, 0);
-	// 上ベクトル
-	XMFLOAT3 v_up(0, 1, 0);
-
-	Model->SceneMatrix->view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up));
-	Model->SceneMatrix->proj = XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
-		static_cast<float>(SCREEN_WIDTH) / static_cast<float>(SCREEN_HEIGHT),//アス比
-		0.1f,//近い方
-		1000.0f//遠い方
-	);
-
-	Model->SceneMatrix->eye = eye;
-
-	// ディスクリプタヒープ作成
-	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};
-	dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;	// シェーダーから見える
-	dhd.NodeMask = 0;	// マスク0
-	dhd.NumDescriptors = 1;	// ビューは今のところ１つだけ
-	dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&dhd, IID_PPV_ARGS(Model->sceneDescHeap.ReleaseAndGetAddressOf()));
-
-	auto heapHandle = Model->sceneDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
-
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
-	cbvd.BufferLocation = Model->SceneConstBuffer.Get()->GetGPUVirtualAddress();
-	cbvd.SizeInBytes = static_cast<UINT>(Model->SceneConstBuffer.Get()->GetDesc().Width);
-
-	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, heapHandle);
-
-	return hr;
 }
 
 HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
@@ -884,11 +826,9 @@ void Object3D::UnInit(MODEL_DX12* Model)
 {
 	Model->VertexBuffer.ReleaseAndGetAddressOf();
 	Model->IndexBuffer.ReleaseAndGetAddressOf();
-	Model->SceneConstBuffer.ReleaseAndGetAddressOf();
 	Model->TextureBuffer.ReleaseAndGetAddressOf();
 	Model->MaterialBuffer.ReleaseAndGetAddressOf();
 	Model->materialDescHeap.ReleaseAndGetAddressOf();
-	Model->sceneDescHeap.ReleaseAndGetAddressOf();
 	Model->transformDescHeap.ReleaseAndGetAddressOf();
 }
 

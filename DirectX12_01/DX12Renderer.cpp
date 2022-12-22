@@ -79,6 +79,11 @@ void DX12Renderer::Init()
 
 void DX12Renderer::Uninit()
 {
+	m_SceneConstBuffer.ReleaseAndGetAddressOf();
+	m_sceneDescHeap.ReleaseAndGetAddressOf();
+	m_LightCBuffer.ReleaseAndGetAddressOf();
+	m_LightDescHeap.ReleaseAndGetAddressOf();
+
 	m_PipelineState.ReleaseAndGetAddressOf();
 	m_RootSignature.ReleaseAndGetAddressOf();
 	m_DescHeap.ReleaseAndGetAddressOf();
@@ -648,7 +653,7 @@ HRESULT DX12Renderer::CreateSceneConstBuffer()
 		IID_PPV_ARGS(m_SceneConstBuffer.ReleaseAndGetAddressOf()));
 	if (FAILED(hr))
 	{
-		assert(hr);
+		assert(SUCCEEDED(hr));
 		return hr;
 	}
 
@@ -660,12 +665,12 @@ HRESULT DX12Renderer::CreateSceneConstBuffer()
 	XMFLOAT3 v_up(0, 1, 0); // 上ベクトル
 	
 	// 書き込み
-	m_MappedSceneMatrix->view = XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up));
-	m_MappedSceneMatrix->proj = XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
+	XMStoreFloat4x4(&m_MappedSceneMatrix->view, XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&target), XMLoadFloat3(&v_up)));
+	XMStoreFloat4x4(&m_MappedSceneMatrix->proj, XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
 		static_cast<float>(SCREEN_WIDTH) / static_cast<float>(SCREEN_HEIGHT),//アス比
 		0.1f,//近い方
 		1000.0f//遠い方
-	);
+	));
 	m_MappedSceneMatrix->eye = eye;
 
 	// ディスクリプタヒープ作成
