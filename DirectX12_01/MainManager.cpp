@@ -31,7 +31,7 @@ void MainManager::Init()
     g_HatsuneMiku->Init();
     
     g_bgm->Load("Assets/Audio/アンノウン・マザーグース.wav");
-    g_bgm->Play();
+    //g_bgm->Play();
 }
 
 void MainManager::Uninit()

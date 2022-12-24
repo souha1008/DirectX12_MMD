@@ -221,7 +221,7 @@ public:
 
 
     // ボーンを子の末端まで伝える再帰関数
-    void RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat);
+    void RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat, bool flag = false);
 
     std::string GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath);
     std::wstring GetWideStringFromString(const std::string& str);
@@ -257,7 +257,9 @@ private:
     std::vector<std::string> m_BoneNameArray;
     
     //インデックスからノードを検索しやすいようにしておく
-    std::vector<BoneNode*> _boneNodeAddressArray;
+    std::vector<BoneNode*> m_boneNodeAddressArray;
+
+    std::vector<uint32_t> m_kneeIdxes;
 
     // アニメーション開始時のミリ秒
     DWORD m_StartTime;
