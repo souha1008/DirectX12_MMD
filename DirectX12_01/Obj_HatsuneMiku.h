@@ -10,6 +10,5 @@ public:
 
 private:
     Object3D* m_Object;
-    MODEL_DX12 m_Model;
 };
 

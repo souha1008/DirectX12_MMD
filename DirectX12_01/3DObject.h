@@ -17,35 +17,6 @@ typedef struct
     unsigned char R, G, B, A;
 }TEXRGBA;
 
-#pragma pack(push, 1) // ここから1バイトパッキングとなり、アライメントは発生しない
-typedef struct
-{
-    XMFLOAT3 diffuse;   // ディフューズ色
-    float alpha;        // ディフューズ
-    float specularity;   // スペキュラの強さ
-    XMFLOAT3 specular;  // スペキュラ色
-    XMFLOAT3 ambient;   // アンビエント色
-    unsigned char toonIdx;  // トゥーン番号
-    unsigned char edgeFlg;  // マテリアルごとの輪郭線フラグ
-
-    // 2バイトのパディングがある
-    unsigned int indicesNum;
-    char texFilePath[20];   // テクスチャファイルパス + α
-}PMDMaterial;   // パディングが発生しないため70バイト
-#pragma pack(pop)  // パッキング指定を解除
-
-#pragma pack(push, 1)
-typedef struct
-{
-    char boneName[20];          // ボーン名
-    unsigned short parentNo;    // 親ボーン番号
-    unsigned short nextNo;      // 先端のボーン番号
-    unsigned char type;         // ボーン種別
-    unsigned short  ikBoneNo;   // IKボーン番号
-    XMFLOAT3 pos;               // ボーンの基準点座標
-}PMDBone;
-#pragma pack(pop)
-
 typedef struct
 {
     uint16_t boneIdx;   // IK対象のボーンを示す
@@ -54,15 +25,6 @@ typedef struct
     float limit;        // 1回あたりの回転制限
     std::vector<uint16_t> nodeIdx;  // 間のノード番号
 }PMDIK;
-
-typedef struct
-{
-    char boneName[15];      // ボーン名
-    unsigned int frameNo;   // フレーム番号
-    XMFLOAT3 location;      // 位置
-    XMFLOAT4 quaternion;    // クォータニオン（回転）
-    unsigned char bezier[64]; // ベジェ保管パラメータ
-}VMDMotion;
 
 // IKオノフデータ
 typedef struct
@@ -126,90 +88,51 @@ struct KeyFrame
     {}
 };
 
-typedef struct
-{
-    ComPtr<ID3D12Resource> VertexBuffer;
-    ComPtr<ID3D12Resource> IndexBuffer;
-    ComPtr<ID3D12Resource> TransfromConstBuffer;
-    ComPtr<ID3D12Resource> TextureBuffer;
-    ComPtr<ID3D12Resource> MaterialBuffer;
-
-    std::vector<ComPtr<ID3D12Resource>> TextureResource;
-    std::vector<ComPtr<ID3D12Resource>> sphResource;
-    std::vector<ComPtr<ID3D12Resource>> spaResource;
-    std::vector<ComPtr<ID3D12Resource>> toonResource;
-
-    std::vector<XMMATRIX> BoneMatrix;
-
-    D3D12_VERTEX_BUFFER_VIEW vbView;  // 頂点バッファービュー
-    D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー
-
-    ComPtr<ID3D12DescriptorHeap> materialDescHeap;
-    ComPtr<ID3D12DescriptorHeap> transformDescHeap;
-
-    TRANSFORM TransformMatrix;
-
-    TexMetadata MetaData;
-    XMMATRIX* mappedMatrices;
-
-    std::vector<MATERIAL> material;
-    SUBSET sub;
-
-    // モーションデータ
-    std::unordered_map<std::string, std::vector<KeyFrame>> MotionData;
-
-    std::vector<PMDIK> pmdIKData;
-
-
-}MODEL_DX12;
-
 class Object3D
 {
 public:
     // モデル生成（全部入り）
-    HRESULT CreateModel(const char* Filename, const char* Motionname, MODEL_DX12* Model);
+    HRESULT CreateModel(const char* Filename, const char* Motionname);
 
     // PMDヘッダー読み込み
     HRESULT LoadPMDHeader(FILE* file);
 
     // バーテックスバッファ生成
-    HRESULT CreateVertexBuffer(FILE* file, MODEL_DX12* Model);
+    HRESULT CreateVertexBuffer(FILE* file);
 
     // インデックスバッファ生成
-    HRESULT CreateIndexBuffer(FILE* file, MODEL_DX12* Model);
+    HRESULT CreateIndexBuffer(FILE* file);
 
     // オブジェクト用定数バッファ生成
-    HRESULT CreateTransformCBuffer(MODEL_DX12* Model);
+    HRESULT CreateTransformCBuffer();
 
-    // テクスチャデータ生成
-    HRESULT CreateTextureData(MODEL_DX12* Model);
     // テクスチャデータロード
-    ID3D12Resource* LoadTextureFromFile(MODEL_DX12* Model, std::string& texPath);
+    ID3D12Resource* LoadTextureFromFile(std::string& texPath);
 
     // マテリアル生成
-    HRESULT LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelPath);
-    HRESULT CreateMaterialBuffer(MODEL_DX12* Model);
-    HRESULT CreateMaterialView(MODEL_DX12* Model);
+    HRESULT LoadMaterial(FILE* file, std::string ModelPath);
+    HRESULT CreateMaterialBuffer();
+    HRESULT CreateMaterialView();
 
     // ボーン生成
-    HRESULT CreateBone(FILE* file, MODEL_DX12* Model);
+    HRESULT LoadPMDBone(FILE* file);
 
     // VMDデータ読み込み
-    HRESULT LoadVMDData(FILE* file, MODEL_DX12* Model);
+    HRESULT LoadVMDData(FILE* file);
     // IK読み込み
-    HRESULT LoadIK(FILE* file, MODEL_DX12* Model);
+    HRESULT LoadIK(FILE* file);
     // nodeindexの数によって場合分け
-    void IKSolve(MODEL_DX12* Model, int frameNo);
+    void IKSolve(int frameNo);
     // CCD-IKによりボーン方向を解決
-    void SolveCCDIK(MODEL_DX12* Model, const PMDIK& ik);
+    void SolveCCDIK(const PMDIK& ik);
     // 余弦定理IKによりボーン方向を解決
-    void SolveCosineIK(MODEL_DX12* Model, const PMDIK& ik);
+    void SolveCosineIK(const PMDIK& ik);
     // LookAt行列によりボーン方向を解決
-    void SolveLookAtIK(MODEL_DX12* Model, const PMDIK& ik);
+    void SolveLookAtIK(const PMDIK& ik);
 
 
     // ボーンを子の末端まで伝える再帰関数
-    void RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat, bool flag = false);
+    void RecursiveMatrixMultiply(BoneNode* node, const XMMATRIX& mat, bool flag = false);
 
     std::string GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath);
     std::wstring GetWideStringFromString(const std::string& str);
@@ -224,13 +147,46 @@ public:
     void CreateLambdaTable();
 
     void PlayAnimation();
-    void MotionUpdate(MODEL_DX12* Model);
+    void MotionUpdate();
 
-
-    void UnInit(MODEL_DX12* Model);
+    void Draw();
+    void UnInit();
 
 private:
-    float GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n);
+
+    ComPtr<ID3D12Resource> VertexBuffer;    // 頂点バッファー
+    D3D12_VERTEX_BUFFER_VIEW vbView;  // 頂点バッファービュー
+    ComPtr<ID3D12Resource> IndexBuffer; // インデックスバッファー
+    D3D12_INDEX_BUFFER_VIEW ibView;  // インデックスバッファービュー
+
+    // モデル用定数バッファ
+    ComPtr<ID3D12Resource> TransfromConstBuffer;
+    ComPtr<ID3D12DescriptorHeap> transformDescHeap;
+    XMMATRIX* mappedMatrices;   // モデル用定数バッファをマップ
+
+    // テクスチャ用バッファ
+    ComPtr<ID3D12Resource> TextureBuffer;
+
+    // マテリアル情報格納
+    std::vector<MATERIAL> material;
+    std::vector<ComPtr<ID3D12Resource>> TextureResource;
+    std::vector<ComPtr<ID3D12Resource>> sphResource;
+    std::vector<ComPtr<ID3D12Resource>> spaResource;
+    std::vector<ComPtr<ID3D12Resource>> toonResource;
+    SUBSET sub;
+
+    // マテリアル用定数バッファ
+    ComPtr<ID3D12Resource> MaterialConstBuffer;
+    ComPtr<ID3D12DescriptorHeap> materialDescHeap;
+
+    // ボーンマトリクス
+    std::vector<XMMATRIX> BoneMatrix;
+
+    // モーションデータ
+    std::unordered_map<std::string, std::vector<KeyFrame>> MotionData;
+
+    // IKデータ格納
+    std::vector<PMDIK> pmdIKData;
 
     // ロード用ラムダ
     std::map<std::string, LoadLambda_t> m_loadLambdaTable;
@@ -255,6 +211,8 @@ private:
     DWORD m_StartTime;
     unsigned int m_duration;
 
+
+    float GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n);
 };
 
 

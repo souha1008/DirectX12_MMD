@@ -63,7 +63,7 @@ namespace
 }
 
 
-HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODEL_DX12* Model)
+HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname)
 {
 	//HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 
@@ -77,27 +77,28 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 	LoadPMDHeader(fp);
 
 	// 頂点バッファー&ビュー作成
-	HRESULT hr = CreateVertexBuffer(fp, Model);
+	HRESULT hr = CreateVertexBuffer(fp);
 
 	// インデックスバッファー&ビュー生成
-	hr = CreateIndexBuffer(fp, Model);
+	hr = CreateIndexBuffer(fp);
 
 	// マテリアル読み込み
-	hr = LoadMaterial(fp, Model, ModelPath);
+	hr = LoadMaterial(fp, ModelPath);
 
 	// ボーンの読み込み
-	hr = CreateBone(fp, Model);
+	hr = LoadPMDBone(fp);
 
-	hr = LoadIK(fp, Model);
+	// IKデータ読み込み
+	hr = LoadIK(fp);
 
 	// モーションデータ読み込み
-	hr = LoadVMDData(fopen(Motionname, "rb"), Model);
+	hr = LoadVMDData(fopen(Motionname, "rb"));
 
 	// ワールド用定数バッファ作成
-	hr = CreateTransformCBuffer(Model);
+	hr = CreateTransformCBuffer();
 
 	// マテリアル用定数バッファ作成
-	hr = CreateMaterialView(Model);
+	hr = CreateMaterialView();
 	
 	// ファイルクローズ
 	fclose(fp);
@@ -123,7 +124,7 @@ HRESULT Object3D::LoadPMDHeader(FILE* file)
 	return S_OK;
 }
 
-HRESULT Object3D::CreateVertexBuffer(FILE* file, MODEL_DX12* Model)
+HRESULT Object3D::CreateVertexBuffer(FILE* file)
 {
 	HRESULT hr;
 
@@ -150,7 +151,7 @@ HRESULT Object3D::CreateVertexBuffer(FILE* file, MODEL_DX12* Model)
 	{
 		fread(&vertices[i], pmdVertex_size, 1, file);
 	}
-	Model->sub.vertNum = vertNum;
+	sub.vertNum = vertNum;
 
 	CD3DX12_HEAP_PROPERTIES cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);	// d3d12x.h
 	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer(vertices.size() * sizeof(PMDVertex));		// d3d12x.h
@@ -162,20 +163,20 @@ HRESULT Object3D::CreateVertexBuffer(FILE* file, MODEL_DX12* Model)
 		&cd_buffer,		// サイズに応じて適切な設定をする
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(Model->VertexBuffer.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(VertexBuffer.ReleaseAndGetAddressOf())
 	);
 
 	// 頂点バッファーマップ
 	PMDVertex* vertMap = nullptr;
-	hr = Model->VertexBuffer.Get()->Map(0, nullptr, (void**)&vertMap);
+	hr = VertexBuffer.Get()->Map(0, nullptr, (void**)&vertMap);
 	std::copy(vertices.begin(), vertices.end(), vertMap);
-	Model->VertexBuffer.Get()->Unmap(0, nullptr);
+	VertexBuffer.Get()->Unmap(0, nullptr);
 
-	Model->vbView.BufferLocation = Model->VertexBuffer.Get()->GetGPUVirtualAddress(); // バッファの仮想アドレス
-	Model->vbView.SizeInBytes = static_cast<UINT>(vertices.size() * sizeof(PMDVertex));	// 全バイト数
-	Model->vbView.StrideInBytes = sizeof(PMDVertex);	// 1頂点あたりのバイト数
+	vbView.BufferLocation = VertexBuffer.Get()->GetGPUVirtualAddress(); // バッファの仮想アドレス
+	vbView.SizeInBytes = static_cast<UINT>(vertices.size() * sizeof(PMDVertex));	// 全バイト数
+	vbView.StrideInBytes = sizeof(PMDVertex);	// 1頂点あたりのバイト数
 
-	if (Model->vbView.SizeInBytes <= 0 || Model->vbView.StrideInBytes <= 0)
+	if (vbView.SizeInBytes <= 0 || vbView.StrideInBytes <= 0)
 	{
 		return ERROR;
 	}
@@ -183,9 +184,7 @@ HRESULT Object3D::CreateVertexBuffer(FILE* file, MODEL_DX12* Model)
 	return hr;
 }
 
-
-
-HRESULT Object3D::CreateIndexBuffer(FILE* file, MODEL_DX12* Model)
+HRESULT Object3D::CreateIndexBuffer(FILE* file)
 {
 	HRESULT hr;
 
@@ -195,7 +194,7 @@ HRESULT Object3D::CreateIndexBuffer(FILE* file, MODEL_DX12* Model)
 	std::vector<unsigned short> indices(indicesNum);
 	fread(indices.data(), indices.size() * sizeof(indices[0]), 1, file);
 
-	Model->sub.indecesNum = indicesNum;
+	sub.indecesNum = indicesNum;
 
 	CD3DX12_HEAP_PROPERTIES cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);	// d3d12x.h
 	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer(indices.size() * sizeof(indices[0]));		// d3d12x.h
@@ -206,24 +205,24 @@ HRESULT Object3D::CreateIndexBuffer(FILE* file, MODEL_DX12* Model)
 		&cd_buffer,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(Model->IndexBuffer.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(IndexBuffer.ReleaseAndGetAddressOf())
 	);
 	// インデックスバッファーマップ
 	unsigned short* indMap = nullptr;
-	Model->IndexBuffer.Get()->Map(0, nullptr, (void**)&indMap);
+	IndexBuffer.Get()->Map(0, nullptr, (void**)&indMap);
 	std::copy(std::begin(indices), std::end(indices), indMap);
-	Model->IndexBuffer.Get()->Unmap(0, nullptr);
+	IndexBuffer.Get()->Unmap(0, nullptr);
 
-	Model->ibView.BufferLocation = Model->IndexBuffer.Get()->GetGPUVirtualAddress();
-	Model->ibView.Format = DXGI_FORMAT_R16_UINT;
-	Model->ibView.SizeInBytes = static_cast<UINT>(indices.size() * sizeof(indices[0]));
+	ibView.BufferLocation = IndexBuffer.Get()->GetGPUVirtualAddress();
+	ibView.Format = DXGI_FORMAT_R16_UINT;
+	ibView.SizeInBytes = static_cast<UINT>(indices.size() * sizeof(indices[0]));
 
 	return hr;
 }
 
-HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
+HRESULT Object3D::CreateTransformCBuffer()
 {
-	auto bufferSize = sizeof(TRANSFORM) * (1 + Model->BoneMatrix.size());
+	auto bufferSize = sizeof(TRANSFORM) * (1 + BoneMatrix.size());
 	bufferSize = (bufferSize + 0xff) & ~0xff;
 	auto cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 	auto cd_rd = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
@@ -234,138 +233,39 @@ HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
 		&cd_rd,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(Model->TransfromConstBuffer.ReleaseAndGetAddressOf()));
+		IID_PPV_ARGS(TransfromConstBuffer.ReleaseAndGetAddressOf()));
 
 	XMMATRIX WorldMatrix = XMMatrixIdentity();
 
 	// マップ
-	hr = Model->TransfromConstBuffer.Get()->Map(0, nullptr, (void**)&Model->mappedMatrices);
+	hr = TransfromConstBuffer.Get()->Map(0, nullptr, (void**)&mappedMatrices);
 	//XMStoreFloat4x4(&Model->mappedMatrices[0].world, WorldMatrix);
-	Model->mappedMatrices[0] = WorldMatrix;
+	mappedMatrices[0] = WorldMatrix;
 
-	RecursiveMatrixMultiply(Model, &m_BoneNodeTable["センター"], XMMatrixIdentity());
+	RecursiveMatrixMultiply(&m_BoneNodeTable["センター"], XMMatrixIdentity());
 
 	// マトリクスのコピー
-	std::copy(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), Model->mappedMatrices + 1);
+	std::copy(BoneMatrix.begin(), BoneMatrix.end(), mappedMatrices + 1);
 
 	D3D12_DESCRIPTOR_HEAP_DESC transform_dhd = {};
 	transform_dhd.NumDescriptors = 1;
 	transform_dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	transform_dhd.NodeMask = 0;
 	transform_dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&transform_dhd, IID_PPV_ARGS(Model->transformDescHeap.ReleaseAndGetAddressOf()));
+	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(&transform_dhd, IID_PPV_ARGS(transformDescHeap.ReleaseAndGetAddressOf()));
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cdvDesc = {};
-	cdvDesc.BufferLocation = Model->TransfromConstBuffer.Get()->GetGPUVirtualAddress();
+	cdvDesc.BufferLocation = TransfromConstBuffer.Get()->GetGPUVirtualAddress();
 	cdvDesc.SizeInBytes = static_cast<UINT>(bufferSize);
 
-	auto heapHandle = Model->transformDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	auto heapHandle = transformDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cdvDesc, heapHandle);
 
 	
 	return hr;
 }
 
-HRESULT Object3D::CreateTextureData(MODEL_DX12* Model)
-{
-
-	////for (TEXRGBA& rgba : g_Texture)
-	////{
-	////	rgba.R = 0;
-	////	rgba.G = 0;
-	////	rgba.B = 0;
-	////	rgba.A = 255;
-	////}
-	//ScratchImage ScratchImg = {};
-
-	//HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
-
-	//// WICテクスチャのロード
-	//hr = LoadFromWICFile(
-	//	L"img/textest.png",
-	//	WIC_FLAGS_NONE,
-	//	&Model->MetaData,
-	//	ScratchImg
-	//);
-
-	//// 生データ抽出
-	//const Image* img = ScratchImg.GetImage(0, 0, 0);
-
-	//// WriteToSubresourceで転送するためのヒープ設定
-	//D3D12_HEAP_PROPERTIES heapprop = {};
-
-	//// 特殊な設定なのでDEFAULTでもUPLOADでもない
-	//heapprop.Type = D3D12_HEAP_TYPE_CUSTOM;
-
-	////ライトバック
-	//heapprop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-
-	//// 転送はL0、CPU側から直接行う
-	//heapprop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-
-	//// 単一アダプターのため0
-	//heapprop.CreationNodeMask = 0;
-	//heapprop.VisibleNodeMask = 0;
-
-	//// リソース設定
-	//D3D12_RESOURCE_DESC rd = {};
-
-	////RBGAフォーマット
-	////rd.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	////rd.Width = 256;		// テクスチャの幅
-	////rd.Height = 256;	// テクスチャの高さ
-	////rd.DepthOrArraySize = 1;	// 2Dで配列でもないので１
-	////rd.SampleDesc.Count = 1;	// 通常テクスチャなのでアンチエイリアシングしない
-	////rd.SampleDesc.Quality = 0;	// クオリティは最低
-	////rd.MipLevels = 1;	// 読み込んだメタデータのミップレベル参照
-	////rd.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;	// 2Dテクスチャ用
-	////rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;	// レイアウトは決定しない
-	////rd.Flags = D3D12_RESOURCE_FLAG_NONE;	// フラグなし
-
-	//// テクスチャフォーマット
-	//rd.Format = Model->MetaData.format;
-	//rd.Width = Model->MetaData.width;		// テクスチャの幅
-	//rd.Height = Model->MetaData.height;	// テクスチャの高さ
-	//rd.DepthOrArraySize = Model->MetaData.arraySize;	// 2Dで配列でもないので１
-	//rd.SampleDesc.Count = 1;	// 通常テクスチャなのでアンチエイリアシングしない
-	//rd.SampleDesc.Quality = 0;	// クオリティは最低
-	//rd.MipLevels = Model->MetaData.mipLevels;	// 読み込んだメタデータのミップレベル参照
-	//rd.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(Model->MetaData.dimension);	// 2Dテクスチャ用
-	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;	// レイアウトは決定しない
-	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;	// フラグなし
-
-	//hr = DX12Renderer::GetDevice()->CreateCommittedResource(
-	//	&heapprop,
-	//	D3D12_HEAP_FLAG_NONE,
-	//	&rd,
-	//	D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-	//	nullptr,
-	//	IID_PPV_ARGS(&Model->TextureBuffer)
-	//);
-
-	//// RGBA
-	//hr = Model->TextureBuffer->WriteToSubresource(
-	//	0,
-	//	nullptr,
-	//	g_Texture.data(),	// 元データアドレス
-	//	sizeof(TEXRGBA) * 256,	// 1ラインサイズ
-	//	sizeof(TEXRGBA) * g_Texture.size()
-	//);
-
-
-	//// テクスチャ
-	////hr = Model->TextureBuffer->WriteToSubresource(
-	////	0,
-	////	nullptr,
-	////	img->pixels,	// 元データアドレス
-	////	img->rowPitch,	// 1ラインサイズ
-	////	img->slicePitch
-	////);
-
-	return S_OK;
-}
-
-ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& texPath)
+ID3D12Resource* Object3D::LoadTextureFromFile(std::string& texPath)
 {
 	auto it = m_resourceTable.find(texPath);
 	if (it != m_resourceTable.end())
@@ -391,31 +291,10 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 	const Image* img = scratchImg.GetImage(0, 0, 0);	// 生データ抽出
 
 	// WriteToSubresourceで転送する用のヒープ設定
-	
-	//D3D12_HEAP_PROPERTIES texhp = {};
-	//texhp.Type = D3D12_HEAP_TYPE_CUSTOM;
-	//texhp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	//texhp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	//texhp.CreationNodeMask = 0;	// 単一アダプタのため0
-	//texhp.VisibleNodeMask = 0;	// 単一アダプタのため0
-
 	CD3DX12_HEAP_PROPERTIES texhp = CD3DX12_HEAP_PROPERTIES(D3D12_CPU_PAGE_PROPERTY_WRITE_BACK, D3D12_MEMORY_POOL_L0);
 	
 
 	// リソース設定
-
-	//D3D12_RESOURCE_DESC rd = {};
-	//rd.Format = metadata.format;
-	//rd.Width = metadata.width;
-	//rd.Height = metadata.height;
-	//rd.DepthOrArraySize = metadata.arraySize;
-	//rd.SampleDesc.Count = 1;	// 通常テクスチャなのでアンチエイリアシングしない
-	//rd.SampleDesc.Quality = 0;	// クオリティは0
-	//rd.MipLevels = metadata.mipLevels;
-	//rd.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-	//rd.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	//rd.Flags = D3D12_RESOURCE_FLAG_NONE;
-
 	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Tex2D(
 		metadata.format, 
 		metadata.width, 
@@ -429,10 +308,10 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 		&rd,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 		nullptr,
-		IID_PPV_ARGS(Model->TextureBuffer.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(TextureBuffer.ReleaseAndGetAddressOf())
 	);
 
-	hr = Model->TextureBuffer.Get()->WriteToSubresource(
+	hr = TextureBuffer.Get()->WriteToSubresource(
 		0, nullptr, img->pixels, img->rowPitch, img->slicePitch
 	);
 
@@ -441,34 +320,51 @@ ID3D12Resource* Object3D::LoadTextureFromFile(MODEL_DX12* Model, std::string& te
 		return nullptr;
 	}
 
-	m_resourceTable[texPath] = Model->TextureBuffer.Get();
+	m_resourceTable[texPath] = TextureBuffer.Get();
 
-	return Model->TextureBuffer.Get();
+	return TextureBuffer.Get();
 }
 
-HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelPath)
+HRESULT Object3D::LoadMaterial(FILE* file, std::string ModelPath)
 {
+#pragma pack(push, 1) // ここから1バイトパッキングとなり、アライメントは発生しない
+	typedef struct
+	{
+		XMFLOAT3 diffuse;   // ディフューズ色
+		float alpha;        // ディフューズ
+		float specularity;   // スペキュラの強さ
+		XMFLOAT3 specular;  // スペキュラ色
+		XMFLOAT3 ambient;   // アンビエント色
+		unsigned char toonIdx;  // トゥーン番号
+		unsigned char edgeFlg;  // マテリアルごとの輪郭線フラグ
+
+		// 2バイトのパディングがある
+		unsigned int indicesNum;
+		char texFilePath[20];   // テクスチャファイルパス + α
+	}PMDMaterial;   // パディングが発生しないため70バイト
+#pragma pack(pop)  // パッキング指定を解除
+
 	unsigned int materialNum;
 	fread(&materialNum, sizeof(materialNum), 1, file);
 	std::vector<PMDMaterial> pmdMaterials(materialNum);
 	fread(pmdMaterials.data(), pmdMaterials.size() * sizeof(PMDMaterial), 1, file);
 
-	Model->material.resize(materialNum);
-	Model->TextureResource.resize(materialNum); // マテリアルの数分テクスチャのリソース分確保
-	Model->sphResource.resize(materialNum);	// 同様
-	Model->spaResource.resize(materialNum);
-	Model->toonResource.resize(materialNum);
+	material.resize(materialNum);
+	TextureResource.resize(materialNum); // マテリアルの数分テクスチャのリソース分確保
+	sphResource.resize(materialNum);	// 同様
+	spaResource.resize(materialNum);
+	toonResource.resize(materialNum);
 
 	// コピー
 	for (int i = 0; i < pmdMaterials.size(); ++i)
 	{
-		Model->material[i].indicesNum = pmdMaterials[i].indicesNum;
-		Model->material[i].material.diffuse = pmdMaterials[i].diffuse;
-		Model->material[i].material.alpha = pmdMaterials[i].alpha;
-		Model->material[i].material.specular = pmdMaterials[i].specular;
-		Model->material[i].material.specularity = pmdMaterials[i].specularity;
-		Model->material[i].material.ambient = pmdMaterials[i].ambient;
-		Model->material[i].additional.toonIdx = pmdMaterials[i].toonIdx;
+		material[i].indicesNum = pmdMaterials[i].indicesNum;
+		material[i].material.diffuse = pmdMaterials[i].diffuse;
+		material[i].material.alpha = pmdMaterials[i].alpha;
+		material[i].material.specular = pmdMaterials[i].specular;
+		material[i].material.specularity = pmdMaterials[i].specularity;
+		material[i].material.ambient = pmdMaterials[i].ambient;
+		material[i].additional.toonIdx = pmdMaterials[i].toonIdx;
 	}
 	for (int i = 0; i < pmdMaterials.size(); ++i)
 	{
@@ -477,12 +373,11 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 		char toonFileName[16];
 		sprintf_s(toonFileName, 16,"toon%02d.bmp", pmdMaterials[i].toonIdx + 1);
 		toonFilePath += toonFileName;
-		Model->toonResource[i] = LoadTextureFromFile(Model, toonFilePath);
+		toonResource[i] = LoadTextureFromFile(toonFilePath);
 
 		if (strlen(pmdMaterials[i].texFilePath) == 0)
 		{
-			Model->TextureResource[i] = nullptr;
-			//continue;
+			TextureResource[i] = nullptr;
 		}
 
 		// モデルとテクスチャパスからアプリケーションからのテクスチャパスを得る
@@ -536,37 +431,37 @@ HRESULT Object3D::LoadMaterial(FILE* file, MODEL_DX12* Model, std::string ModelP
 		if (texFileName != "")
 		{
 			auto texFilePath = GetTexturePathFromModelandTexPath(ModelPath, texFileName.c_str());
-			Model->TextureResource[i] = LoadTextureFromFile(Model, texFilePath);
+			TextureResource[i] = LoadTextureFromFile(texFilePath);
 		}
 		if (sphFileName != "")
 		{
 			auto sphFilePath = GetTexturePathFromModelandTexPath(ModelPath, sphFileName.c_str());
-			Model->sphResource[i] = LoadTextureFromFile(Model, sphFilePath);
+			sphResource[i] = LoadTextureFromFile(sphFilePath);
 		}
 		if (spaFileName != "")
 		{
 			auto spaFilePath = GetTexturePathFromModelandTexPath(ModelPath, spaFileName.c_str());
-			Model->spaResource[i] = LoadTextureFromFile(Model, spaFilePath);
+			spaResource[i] = LoadTextureFromFile(spaFilePath);
 		}
 
 	}
 
-	Model->sub.materialNum = materialNum;
+	sub.materialNum = materialNum;
 
 	// マテリアルバッファー作成
-	HRESULT hr = CreateMaterialBuffer(Model);
+	HRESULT hr = CreateMaterialBuffer();
 
 	return hr;
 }
 
-HRESULT Object3D::CreateMaterialBuffer(MODEL_DX12* Model)
+HRESULT Object3D::CreateMaterialBuffer()
 {
 	unsigned long long materialBufferSize = sizeof(MaterialForHlsl);
 	materialBufferSize = (materialBufferSize + 0xff) & ~0xff;
-	Model->sub.materialBufferSize = materialBufferSize;
+	sub.materialBufferSize = materialBufferSize;
 
 	CD3DX12_HEAP_PROPERTIES hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Buffer(materialBufferSize * Model->sub.materialNum);
+	CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Buffer(materialBufferSize * sub.materialNum);
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
 		&hp,
@@ -574,35 +469,35 @@ HRESULT Object3D::CreateMaterialBuffer(MODEL_DX12* Model)
 		&rd,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(Model->MaterialBuffer.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(MaterialConstBuffer.ReleaseAndGetAddressOf())
 	);
 
 	char* mapMaterial = nullptr;
 
-	hr = Model->MaterialBuffer.Get()->Map(0, nullptr, (void**)&mapMaterial);
+	hr = MaterialConstBuffer.Get()->Map(0, nullptr, (void**)&mapMaterial);
 
-	for (auto& m : Model->material)
+	for (auto& m : material)
 	{
 		*((MaterialForHlsl*)mapMaterial) = m.material;	// データコピー
 		mapMaterial += materialBufferSize;	// 次のアライメント位置まで進める
 	}
-	Model->MaterialBuffer.Get()->Unmap(0, nullptr);
+	MaterialConstBuffer.Get()->Unmap(0, nullptr);
 
 	return hr;
 }
 
-HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
+HRESULT Object3D::CreateMaterialView()
 {
 	// マテリアル用ディスクリプター作成
 	D3D12_DESCRIPTOR_HEAP_DESC mat_dhd = {};
 	mat_dhd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	mat_dhd.NodeMask = 0;
-	mat_dhd.NumDescriptors = Model->sub.materialNum * 5;	// マテリアル数分（スフィアマテリアル追加）+ テクスチャ
+	mat_dhd.NumDescriptors = sub.materialNum * 5;	// マテリアル数分（スフィアマテリアル追加）+ テクスチャ
 	mat_dhd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	HRESULT hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
 		&mat_dhd,
-		IID_PPV_ARGS(Model->materialDescHeap.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(materialDescHeap.ReleaseAndGetAddressOf())
 	);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvd = {};
@@ -615,13 +510,13 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	auto materialBufsize = sizeof(MaterialForHlsl);
 	materialBufsize = (materialBufsize + 0xff) & ~0xff;
 	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbvd = {};
-	mat_cbvd.BufferLocation = Model->MaterialBuffer.Get()->GetGPUVirtualAddress();
+	mat_cbvd.BufferLocation = MaterialConstBuffer.Get()->GetGPUVirtualAddress();
 	mat_cbvd.SizeInBytes = materialBufsize;
 
 	// 先頭を記録
-	D3D12_CPU_DESCRIPTOR_HANDLE mat_dHandle = Model->materialDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE mat_dHandle = materialDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 	UINT inc = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	for (unsigned int i = 0; i < Model->sub.materialNum; i++)
+	for (unsigned int i = 0; i < sub.materialNum; i++)
 	{
 		DX12Renderer::GetDevice()->CreateConstantBufferView(
 			&mat_cbvd,
@@ -630,7 +525,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		mat_dHandle.ptr += inc;
 		mat_cbvd.BufferLocation += materialBufsize;
 
-		if (Model->TextureResource[i] == nullptr)
+		if (TextureResource[i] == nullptr)
 		{
 			srvd.Format = CreateWhiteTexture()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
@@ -640,9 +535,9 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		}
 		else
 		{
-			srvd.Format = Model->TextureResource[i].Get()->GetDesc().Format;
+			srvd.Format = TextureResource[i].Get()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
-				Model->TextureResource[i].Get(),
+				TextureResource[i].Get(),
 				&srvd,
 				mat_dHandle
 			);
@@ -650,7 +545,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		mat_dHandle.ptr += inc;
 
 		// 拡張子がsphだったとき、sphResourceにポインタを入れる
-		if (Model->sphResource[i] == nullptr)
+		if (sphResource[i] == nullptr)
 		{
 			srvd.Format = CreateWhiteTexture()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
@@ -660,9 +555,9 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		}
 		else
 		{
-			srvd.Format = Model->sphResource[i].Get()->GetDesc().Format;
+			srvd.Format = sphResource[i].Get()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
-				Model->sphResource[i].Get(),
+				sphResource[i].Get(),
 				&srvd,
 				mat_dHandle
 			);
@@ -670,7 +565,7 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		mat_dHandle.ptr += inc;
 
 		// 拡張子がspaだったとき、sphResourceにポインタを入れる
-		if (Model->spaResource[i] == nullptr)
+		if (spaResource[i] == nullptr)
 		{
 			srvd.Format = CreateBlackTexture()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
@@ -680,25 +575,25 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 		}
 		else
 		{
-			srvd.Format = Model->spaResource[i].Get()->GetDesc().Format;
+			srvd.Format = spaResource[i].Get()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
-				Model->spaResource[i].Get(),
+				spaResource[i].Get(),
 				&srvd,
 				mat_dHandle
 			);
 		}
 		mat_dHandle.ptr += inc;
 
-		if (Model->toonResource[i] == nullptr)
+		if (toonResource[i] == nullptr)
 		{
 			srvd.Format = CreateGrayGradationTexture()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(CreateGrayGradationTexture(), &srvd, mat_dHandle);
 		}
 		else
 		{
-			srvd.Format = Model->toonResource[i].Get()->GetDesc().Format;
+			srvd.Format = toonResource[i].Get()->GetDesc().Format;
 			DX12Renderer::GetDevice()->CreateShaderResourceView(
-				Model->toonResource[i].Get(),
+				toonResource[i].Get(),
 				&srvd,
 				mat_dHandle
 			);
@@ -709,14 +604,14 @@ HRESULT Object3D::CreateMaterialView(MODEL_DX12* Model)
 	return S_OK;
 }
 
-void Object3D::SolveCosineIK(MODEL_DX12* Model, const PMDIK& ik)
+void Object3D::SolveCosineIK(const PMDIK& ik)
 {
 	std::vector<XMVECTOR> positions; // IK構成点を保存
 	std::array<float, 2> edgeLens;	// IKEAのそれぞれのボーン間の距離を保存
 
 	// ターゲット（末端ボーンではなく、末端ボーンが近づく目標ボーンの座標を取得）
 	auto& targetNode = m_boneNodeAddressArray[ik.boneIdx];
-	auto targetPos = XMVector3Transform(XMLoadFloat3(&targetNode->startPos), Model->BoneMatrix[ik.boneIdx]);
+	auto targetPos = XMVector3Transform(XMLoadFloat3(&targetNode->startPos), BoneMatrix[ik.boneIdx]);
 
 	// IKチェーンが逆順なので、逆に並ぶようにしている
 	// 末端ボーン
@@ -738,12 +633,12 @@ void Object3D::SolveCosineIK(MODEL_DX12* Model, const PMDIK& ik)
 	edgeLens[1] = XMVector3Length(XMVectorSubtract(positions[2], positions[1])).m128_f32[0];
 
 	// ルートボーン座標変換（逆順になっているため使用するインデックスに注意）
-	positions[0] = XMVector3Transform(positions[0], Model->BoneMatrix[ik.nodeIdx[1]]);
+	positions[0] = XMVector3Transform(positions[0], BoneMatrix[ik.nodeIdx[1]]);
 
 	// 真ん中は自動計算
 
 	// 先端ボーン
-	positions[2] = XMVector3Transform(positions[2], Model->BoneMatrix[ik.boneIdx]);
+	positions[2] = XMVector3Transform(positions[2], BoneMatrix[ik.boneIdx]);
 
 	// ルートから先端へのベクトルを作っておく
 	XMVECTOR linearVec = XMVectorSubtract(positions[2], positions[0]);
@@ -787,14 +682,14 @@ void Object3D::SolveCosineIK(MODEL_DX12* Model, const PMDIK& ik)
 	mat2 *= XMMatrixRotationAxis(axis, theta2 - XM_PI);
 	mat2 *= XMMatrixTranslationFromVector(positions[1]);
 
-	Model->BoneMatrix[ik.nodeIdx[1]] *= mat1;
-	Model->BoneMatrix[ik.nodeIdx[0]] *= mat2 * Model->BoneMatrix[ik.nodeIdx[1]];
-	Model->BoneMatrix[ik.targetIdx] = Model->BoneMatrix[ik.nodeIdx[0]];
+	BoneMatrix[ik.nodeIdx[1]] *= mat1;
+	BoneMatrix[ik.nodeIdx[0]] *= mat2 * BoneMatrix[ik.nodeIdx[1]];
+	BoneMatrix[ik.targetIdx] = BoneMatrix[ik.nodeIdx[0]];
 
 
 }
 
-void Object3D::SolveLookAtIK(MODEL_DX12* Model, const PMDIK& ik)
+void Object3D::SolveLookAtIK(const PMDIK& ik)
 {
 	// この関数に来た時点でノードは１つしかなく、
 	// チェーンに入っているノード番号はIKEAのルートノードのものなので
@@ -806,25 +701,25 @@ void Object3D::SolveLookAtIK(MODEL_DX12* Model, const PMDIK& ik)
 	XMVECTOR rpos1 = XMLoadFloat3(&rootNode->startPos);
 	XMVECTOR tpos1 = XMLoadFloat3(&targetNode->startPos);
 
-	XMVECTOR rpos2 = XMVector3TransformCoord(rpos1, Model->BoneMatrix[ik.nodeIdx[0]]);
-	XMVECTOR tpos2 = XMVector3TransformCoord(tpos1, Model->BoneMatrix[ik.boneIdx]);
+	XMVECTOR rpos2 = XMVector3TransformCoord(rpos1, BoneMatrix[ik.nodeIdx[0]]);
+	XMVECTOR tpos2 = XMVector3TransformCoord(tpos1, BoneMatrix[ik.boneIdx]);
 
 	XMVECTOR originVec = XMVectorSubtract(tpos1, rpos1);
 	XMVECTOR targetVec = XMVectorSubtract(tpos2, rpos2);
 
 	originVec = XMVector3Normalize(originVec);
 	targetVec = XMVector3Normalize(targetVec);
-	Model->BoneMatrix[ik.nodeIdx[0]] = LookAtMatrix(originVec, targetVec, XMFLOAT3(0, 1, 0), XMFLOAT3(1, 0, 0));
+	BoneMatrix[ik.nodeIdx[0]] = LookAtMatrix(originVec, targetVec, XMFLOAT3(0, 1, 0), XMFLOAT3(1, 0, 0));
 
 }
 
-void Object3D::RecursiveMatrixMultiply(MODEL_DX12* Model, BoneNode* node, const XMMATRIX& mat, bool flag)
+void Object3D::RecursiveMatrixMultiply(BoneNode* node, const XMMATRIX& mat, bool flag)
 {
-	Model->BoneMatrix[node->boneIdx] *= mat;
+	BoneMatrix[node->boneIdx] *= mat;
 	
 	for (auto& cnode : node->children)
 	{
-		RecursiveMatrixMultiply(Model, cnode, Model->BoneMatrix[node->boneIdx]);
+		RecursiveMatrixMultiply(cnode, BoneMatrix[node->boneIdx]);
 	}
 }
 
@@ -1003,16 +898,6 @@ std::pair<std::string, std::string> Object3D::SplitFileName(const std::string& p
 	return ret;
 }
 
-void Object3D::UnInit(MODEL_DX12* Model)
-{
-	Model->VertexBuffer.ReleaseAndGetAddressOf();
-	Model->IndexBuffer.ReleaseAndGetAddressOf();
-	Model->TextureBuffer.ReleaseAndGetAddressOf();
-	Model->MaterialBuffer.ReleaseAndGetAddressOf();
-	Model->materialDescHeap.ReleaseAndGetAddressOf();
-	Model->transformDescHeap.ReleaseAndGetAddressOf();
-}
-
 float Object3D::GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n)
 {
 	if (a.x == a.y && b.x == b.y)
@@ -1048,7 +933,7 @@ float Object3D::GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b,
 	return t * t * t + 3 * t * t * r * b.y + 3 * t * r * r * a.y;
 }
 
-void Object3D::MotionUpdate(MODEL_DX12* Model)
+void Object3D::MotionUpdate()
 {
 	auto elapsedTime = timeGetTime() - m_StartTime;	// 経過時間
 	unsigned int frameNo = 30 * (elapsedTime / 1000.0f);	// 経過フレーム数計算
@@ -1061,10 +946,10 @@ void Object3D::MotionUpdate(MODEL_DX12* Model)
 	}
 
 	// 行列情報クリア（クリアしていないと前フレームのポーズが重ねがけされてモデルが壊れる）
-	std::fill(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), XMMatrixIdentity());
+	std::fill(BoneMatrix.begin(), BoneMatrix.end(), XMMatrixIdentity());
 
 	// モーションデータ更新
-	for (auto& bonemotion : Model->MotionData)
+	for (auto& bonemotion : MotionData)
 	{
 		auto node = m_BoneNodeTable[bonemotion.first];
 		
@@ -1109,19 +994,31 @@ void Object3D::MotionUpdate(MODEL_DX12* Model)
 		XMMATRIX mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
 			* rotation
 			* XMMatrixTranslation(pos.x, pos.y, pos.z);
-		Model->BoneMatrix[node.boneIdx] = mat;
+		BoneMatrix[node.boneIdx] = mat;
 	}
-	RecursiveMatrixMultiply(Model, &m_BoneNodeTable["センター"], XMMatrixIdentity());
+	RecursiveMatrixMultiply(&m_BoneNodeTable["センター"], XMMatrixIdentity());
 
 	//IKSolve(Model, frameNo);
 
 	// マトリクスのコピー
-	std::copy(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), Model->mappedMatrices + 1);
+	std::copy(BoneMatrix.begin(), BoneMatrix.end(), mappedMatrices + 1);
 
 }
 
-HRESULT Object3D::CreateBone(FILE* file, MODEL_DX12* Model)
+HRESULT Object3D::LoadPMDBone(FILE* file)
 {
+#pragma pack(push, 1)
+	typedef struct
+	{
+		char boneName[20];          // ボーン名
+		unsigned short parentNo;    // 親ボーン番号
+		unsigned short nextNo;      // 先端のボーン番号
+		unsigned char type;         // ボーン種別
+		unsigned short  ikBoneNo;   // IKボーン番号
+		XMFLOAT3 pos;               // ボーンの基準点座標
+	}PMDBone;
+#pragma pack(pop)
+
 	unsigned short boneNum;
 	fread(&boneNum, sizeof(boneNum), 1, file);
 
@@ -1166,15 +1063,24 @@ HRESULT Object3D::CreateBone(FILE* file, MODEL_DX12* Model)
 		m_BoneNodeTable[parentName].children.emplace_back(&m_BoneNodeTable[pmdbones.boneName]);
 	}
 
-	Model->BoneMatrix.resize(pmdBone.size());
+	BoneMatrix.resize(pmdBone.size());
 
-	std::fill(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), XMMatrixIdentity());
+	std::fill(BoneMatrix.begin(), BoneMatrix.end(), XMMatrixIdentity());
 
 	return S_OK;
 }
 
-HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
+HRESULT Object3D::LoadVMDData(FILE* file)
 {
+	typedef struct
+	{
+		char boneName[15];      // ボーン名
+		unsigned int frameNo;   // フレーム番号
+		XMFLOAT3 location;      // 位置
+		XMFLOAT4 quaternion;    // クォータニオン（回転）
+		unsigned char bezier[64]; // ベジェ保管パラメータ
+	}VMDMotion;
+
 	fseek(file, 50, SEEK_SET);
 
 	unsigned int motionDataNum = 0;
@@ -1290,7 +1196,7 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 	for (auto& vmdmotion : vmdMotionData)
 	{
 		XMVECTOR q = XMLoadFloat4(&vmdmotion.quaternion);
-		Model->MotionData[vmdmotion.boneName].emplace_back(
+		MotionData[vmdmotion.boneName].emplace_back(
 			KeyFrame(
 				vmdmotion.frameNo, 
 				q, 
@@ -1299,14 +1205,14 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 				XMFLOAT2((float)vmdmotion.bezier[11] / 127.0f, (float)vmdmotion.bezier[15] / 127.0f)));
 	}
 
-	for (auto& motion : Model->MotionData)
+	for (auto& motion : MotionData)
 	{
 		sort(motion.second.begin(), motion.second.end(),
 			[](const KeyFrame& lval, const KeyFrame& rval) {return lval.frameNo <= rval.frameNo; });
 	}
 
 	// クォータニオン適応
-	for (auto& bonemotion : Model->MotionData)
+	for (auto& bonemotion : MotionData)
 	{
 		// アニメーションデータからボーン名検索
 		auto itBonenode = m_BoneNodeTable.find(bonemotion.first);
@@ -1320,21 +1226,21 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 		auto mat = XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
 				 * XMMatrixRotationQuaternion(bonemotion.second[0].quaternion)
 				 * XMMatrixTranslation(pos.x, pos.y, pos.z);
-		Model->BoneMatrix[node.boneIdx] = mat;
+		BoneMatrix[node.boneIdx] = mat;
 	}
 
 	return S_OK;
 }
 
-HRESULT Object3D::LoadIK(FILE* file, MODEL_DX12* Model)
+HRESULT Object3D::LoadIK(FILE* file)
 {
 	uint16_t IKNum = 0;
 
 	fread(&IKNum, sizeof(IKNum), 1, file);
 
-	Model->pmdIKData.resize(IKNum);
+	pmdIKData.resize(IKNum);
 
-	for (auto& ik : Model->pmdIKData)
+	for (auto& ik : pmdIKData)
 	{
 		fread(&ik.boneIdx, sizeof(ik.boneIdx), 1, file);
 		fread(&ik.targetIdx, sizeof(ik.targetIdx), 1, file);
@@ -1371,7 +1277,7 @@ HRESULT Object3D::LoadIK(FILE* file, MODEL_DX12* Model)
 			return "";
 		}
 	};
-	for (auto& ik : Model->pmdIKData)
+	for (auto& ik : pmdIKData)
 	{
 		std::ostringstream oss;
 		oss << "IKボーン番号=" << ik.boneIdx << "：" << getNameFromIdx(ik.boneIdx) << std::endl;
@@ -1387,7 +1293,7 @@ HRESULT Object3D::LoadIK(FILE* file, MODEL_DX12* Model)
 	return S_OK;
 }
 
-void Object3D::IKSolve(MODEL_DX12* Model, int frameNo)
+void Object3D::IKSolve(int frameNo)
 {
 	// いつもの逆から検索
 	auto it = std::find_if(m_IKEnableData.rbegin(),
@@ -1398,7 +1304,7 @@ void Object3D::IKSolve(MODEL_DX12* Model, int frameNo)
 		});
 
 	// IK解決のためループ
-	for (auto& ik : Model->pmdIKData)
+	for (auto& ik : pmdIKData)
 	{
 		if (it != m_IKEnableData.rend())
 		{
@@ -1421,20 +1327,20 @@ void Object3D::IKSolve(MODEL_DX12* Model, int frameNo)
 			continue;
 
 		case 1:	// 間のボーンの数が１のときはLookAtを使用
-			SolveLookAtIK(Model, ik);
+			SolveLookAtIK(ik);
 			break;
 
 		case 2: // 間のボーンの数が２のときは余弦定理IK
-			SolveCosineIK(Model, ik);
+			SolveCosineIK(ik);
 			break;
 		default: // 間のボーン数が３以上のときはCCD-IK
-			SolveCCDIK(Model, ik);
+			SolveCCDIK(ik);
 			break;
 		}
 	}
 }
 
-void Object3D::SolveCCDIK(MODEL_DX12* Model, const PMDIK& ik)
+void Object3D::SolveCCDIK(const PMDIK& ik)
 {
 	// 誤差の範囲内かどうかに使用する定数
 	constexpr float epsilon = 0.00005f;
@@ -1443,10 +1349,10 @@ void Object3D::SolveCCDIK(MODEL_DX12* Model, const PMDIK& ik)
 	XMVECTOR targetOriginPos = XMLoadFloat3(&targetBoneNode->startPos);
 
 	// 逆行列で無効化する
-	XMMATRIX parentMat = Model->BoneMatrix[m_boneNodeAddressArray[ik.boneIdx]->ikParentBone];
+	XMMATRIX parentMat = BoneMatrix[m_boneNodeAddressArray[ik.boneIdx]->ikParentBone];
 	XMVECTOR det;
 	XMMATRIX invParentMat = XMMatrixInverse(&det, parentMat);
-	XMVECTOR targetNextPos = XMVector3Transform(targetOriginPos, Model->BoneMatrix[ik.boneIdx] * invParentMat);
+	XMVECTOR targetNextPos = XMVector3Transform(targetOriginPos, BoneMatrix[ik.boneIdx] * invParentMat);
 
 	std::vector<XMVECTOR> bonePositions;
 
@@ -1533,11 +1439,11 @@ void Object3D::SolveCCDIK(MODEL_DX12* Model, const PMDIK& ik)
 	int index = 0;
 	for (auto& cIndex : ik.nodeIdx)
 	{
-		Model->BoneMatrix[cIndex] = mats[index];
+		BoneMatrix[cIndex] = mats[index];
 		index++;
 	}
 	auto node = m_boneNodeAddressArray[ik.nodeIdx.back()];
-	RecursiveMatrixMultiply(Model, node, parentMat, true);
+	RecursiveMatrixMultiply(node, parentMat, true);
 
 }
 
@@ -1571,6 +1477,54 @@ void Object3D::CreateLambdaTable()
 	{
 		return LoadFromDDSFile(path.c_str(), DDS_FLAGS_NONE,meta, img);
 	};
+}
+
+void Object3D::Draw()
+{
+	// プリミティブトポロジ設定
+	DX12Renderer::GetGraphicsCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// 頂点バッファービューセット
+	DX12Renderer::GetGraphicsCommandList()->IASetVertexBuffers(0, 1, &vbView);
+
+	// インデックスバッファービューセット
+	DX12Renderer::GetGraphicsCommandList()->IASetIndexBuffer(&ibView);
+
+	ID3D12DescriptorHeap* trans_dh[] = { transformDescHeap.Get() };
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, trans_dh);
+	auto transform_handle = transformDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(1, transform_handle);
+
+	// マテリアルのディスクリプタヒープセット
+	ID3D12DescriptorHeap* mdh[] = { materialDescHeap.Get() };
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, mdh);
+
+	// マテリアル用ディスクリプタヒープの先頭アドレスを取得
+	auto material_handle = materialDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	unsigned int idxOffset = 0;
+
+	// CBVとSRVとSRVとSRVとSRVで1マテリアルを描画するのでインクリメントサイズを５倍にする
+	auto cbvsize = DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
+
+	for (auto& m : material)
+	{
+		DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(2, material_handle);
+		DX12Renderer::GetGraphicsCommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
+
+		// ヒープポインタとインデックスを次に進める
+		material_handle.ptr += cbvsize;
+		idxOffset += m.indicesNum;
+	}
+}
+
+void Object3D::UnInit()
+{
+	VertexBuffer.ReleaseAndGetAddressOf();
+	IndexBuffer.ReleaseAndGetAddressOf();
+	TextureBuffer.ReleaseAndGetAddressOf();
+	MaterialConstBuffer.ReleaseAndGetAddressOf();
+	materialDescHeap.ReleaseAndGetAddressOf();
+	transformDescHeap.ReleaseAndGetAddressOf();
 }
 
 void Object3D::PlayAnimation()
