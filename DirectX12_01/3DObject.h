@@ -17,21 +17,6 @@ typedef struct
     unsigned char R, G, B, A;
 }TEXRGBA;
 
-
-
-#pragma pack(push, 1)
-typedef struct
-{
-    XMFLOAT3 pos;
-    XMFLOAT3 normal;
-    XMFLOAT2 uv;
-    uint16_t boneNo[2];   // ボーン番号
-    uint8_t boneWeight;   // ボーン影響度
-    uint8_t edgeFlag;     // 輪郭線フラグ 
-    uint16_t dummy;
-}PMDVertex;
-#pragma pack(pop)
-
 #pragma pack(push, 1) // ここから1バイトパッキングとなり、アライメントは発生しない
 typedef struct
 {
@@ -188,12 +173,10 @@ public:
     HRESULT LoadPMDHeader(FILE* file);
 
     // バーテックスバッファ生成
-    HRESULT CreateVertexBuffer(MODEL_DX12* Model, std::vector<PMDVertex> vertices);
-    HRESULT SettingVertexBufferView(MODEL_DX12* Model, std::vector<PMDVertex> vertices, size_t pmdVertex_size);
+    HRESULT CreateVertexBuffer(FILE* file, MODEL_DX12* Model);
 
     // インデックスバッファ生成
-    HRESULT CreateIndexBuffer(MODEL_DX12* Model, std::vector<unsigned short> index);
-    HRESULT SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned short> index);
+    HRESULT CreateIndexBuffer(FILE* file, MODEL_DX12* Model);
 
     // オブジェクト用定数バッファ生成
     HRESULT CreateTransformCBuffer(MODEL_DX12* Model);

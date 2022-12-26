@@ -76,38 +76,11 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 	// PMDヘッダー読み込み
 	LoadPMDHeader(fp);
 
-	// 頂点読み込み
-	unsigned int vertNum = 0;	// 頂点数
-	fread(&vertNum, sizeof(vertNum), 1, fp);
+	// 頂点バッファー&ビュー作成
+	HRESULT hr = CreateVertexBuffer(fp, Model);
 
-	constexpr size_t pmdVertex_size = 38;	// 1頂点あたりのサイズ
-	std::vector<PMDVertex> vertices(vertNum);	// バッファー確保
-	for (unsigned int i = 0; i < vertNum; i++)
-	{
-		fread(&vertices[i], pmdVertex_size, 1, fp);
-	}
-	Model->sub.vertNum = vertNum;
-
-	// 頂点バッファー作成
-	HRESULT hr = CreateVertexBuffer(Model, vertices);
-
-	// 頂点バッファービュー設定
-	hr = SettingVertexBufferView(Model, vertices, pmdVertex_size);
-
-	// インデックスバッファー読み込み
-	unsigned int indicesNum = 0;
-	fread(&indicesNum, sizeof(indicesNum), 1, fp);
-	std::vector<unsigned short> indices(indicesNum);
-	fread(indices.data(), indices.size() * sizeof(indices[0]), 1, fp);
-
-	Model->sub.indecesNum = indicesNum;
-
-
-	// インデックスバッファー生成
-	hr = CreateIndexBuffer(Model, indices);
-
-	// インデックスバッファビュー設定
-	hr = SettingIndexBufferView(Model, indices);
+	// インデックスバッファー&ビュー生成
+	hr = CreateIndexBuffer(fp, Model);
 
 	// マテリアル読み込み
 	hr = LoadMaterial(fp, Model, ModelPath);
@@ -147,12 +120,37 @@ HRESULT Object3D::LoadPMDHeader(FILE* file)
 	char signature[3] = {};	// シグネチャ
 	fread(signature, sizeof(signature), 1, file);
 	fread(&pmdheader, sizeof(pmdheader), 1, file);
-	return E_NOTIMPL;
+	return S_OK;
 }
 
-HRESULT Object3D::CreateVertexBuffer(MODEL_DX12* Model, std::vector<PMDVertex> vertices)
+HRESULT Object3D::CreateVertexBuffer(FILE* file, MODEL_DX12* Model)
 {
 	HRESULT hr;
+
+	// 頂点読み込み
+	unsigned int vertNum = 0;	// 頂点数
+	fread(&vertNum, sizeof(vertNum), 1, file);
+
+#pragma pack(push, 1)
+	typedef struct
+	{
+		XMFLOAT3 pos;
+		XMFLOAT3 normal;
+		XMFLOAT2 uv;
+		uint16_t boneNo[2];   // ボーン番号
+		uint8_t boneWeight;   // ボーン影響度
+		uint8_t edgeFlag;     // 輪郭線フラグ 
+		uint16_t dummy;
+	}PMDVertex;
+#pragma pack(pop)
+
+	constexpr size_t pmdVertex_size = 38;	// 1頂点あたりのサイズ
+	std::vector<PMDVertex> vertices(vertNum);	// バッファー確保
+	for (unsigned int i = 0; i < vertNum; i++)
+	{
+		fread(&vertices[i], pmdVertex_size, 1, file);
+	}
+	Model->sub.vertNum = vertNum;
 
 	CD3DX12_HEAP_PROPERTIES cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);	// d3d12x.h
 	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer(vertices.size() * sizeof(PMDVertex));		// d3d12x.h
@@ -173,11 +171,6 @@ HRESULT Object3D::CreateVertexBuffer(MODEL_DX12* Model, std::vector<PMDVertex> v
 	std::copy(vertices.begin(), vertices.end(), vertMap);
 	Model->VertexBuffer.Get()->Unmap(0, nullptr);
 
-	return hr;
-}
-
-HRESULT Object3D::SettingVertexBufferView(MODEL_DX12* Model, std::vector<PMDVertex> vertices, size_t pmdVertex_size)
-{
 	Model->vbView.BufferLocation = Model->VertexBuffer.Get()->GetGPUVirtualAddress(); // バッファの仮想アドレス
 	Model->vbView.SizeInBytes = static_cast<UINT>(vertices.size() * sizeof(PMDVertex));	// 全バイト数
 	Model->vbView.StrideInBytes = sizeof(PMDVertex);	// 1頂点あたりのバイト数
@@ -187,15 +180,25 @@ HRESULT Object3D::SettingVertexBufferView(MODEL_DX12* Model, std::vector<PMDVert
 		return ERROR;
 	}
 
-	return S_OK;
+	return hr;
 }
 
-HRESULT Object3D::CreateIndexBuffer(MODEL_DX12* Model, std::vector<unsigned short> index)
+
+
+HRESULT Object3D::CreateIndexBuffer(FILE* file, MODEL_DX12* Model)
 {
 	HRESULT hr;
 
+	// インデックスバッファー読み込み
+	unsigned int indicesNum = 0;
+	fread(&indicesNum, sizeof(indicesNum), 1, file);
+	std::vector<unsigned short> indices(indicesNum);
+	fread(indices.data(), indices.size() * sizeof(indices[0]), 1, file);
+
+	Model->sub.indecesNum = indicesNum;
+
 	CD3DX12_HEAP_PROPERTIES cd_hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);	// d3d12x.h
-	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer(index.size() * sizeof(index[0]));		// d3d12x.h
+	CD3DX12_RESOURCE_DESC cd_buffer = CD3DX12_RESOURCE_DESC::Buffer(indices.size() * sizeof(indices[0]));		// d3d12x.h
 
 	hr = DX12Renderer::GetDevice()->CreateCommittedResource(
 		&cd_hp,
@@ -208,18 +211,14 @@ HRESULT Object3D::CreateIndexBuffer(MODEL_DX12* Model, std::vector<unsigned shor
 	// インデックスバッファーマップ
 	unsigned short* indMap = nullptr;
 	Model->IndexBuffer.Get()->Map(0, nullptr, (void**)&indMap);
-	std::copy(std::begin(index), std::end(index), indMap);
+	std::copy(std::begin(indices), std::end(indices), indMap);
 	Model->IndexBuffer.Get()->Unmap(0, nullptr);
 
-	return hr;
-}
-
-HRESULT Object3D::SettingIndexBufferView(MODEL_DX12* Model, std::vector<unsigned short> index)
-{
 	Model->ibView.BufferLocation = Model->IndexBuffer.Get()->GetGPUVirtualAddress();
 	Model->ibView.Format = DXGI_FORMAT_R16_UINT;
-	Model->ibView.SizeInBytes = static_cast<UINT>(index.size() * sizeof(index[0]));
-	return S_OK;
+	Model->ibView.SizeInBytes = static_cast<UINT>(indices.size() * sizeof(indices[0]));
+
+	return hr;
 }
 
 HRESULT Object3D::CreateTransformCBuffer(MODEL_DX12* Model)
