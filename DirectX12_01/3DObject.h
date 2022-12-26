@@ -17,12 +17,7 @@ typedef struct
     unsigned char R, G, B, A;
 }TEXRGBA;
 
-typedef struct
-{
-    float version;          // 例：00 00 80 3F == 1.00
-    char model_name[20];    // モデル名
-    char comment[256];      // モデルコメント
-}PMDHeader;
+
 
 #pragma pack(push, 1)
 typedef struct
@@ -83,6 +78,13 @@ typedef struct
     XMFLOAT4 quaternion;    // クォータニオン（回転）
     unsigned char bezier[64]; // ベジェ保管パラメータ
 }VMDMotion;
+
+// IKオノフデータ
+typedef struct
+{
+    uint32_t frameNo;
+    std::unordered_map<std::string, bool> ikEnableTable;
+}VMDIKEnable;
 
 // シェーダーに転送するデータ
 typedef struct
@@ -182,6 +184,9 @@ public:
     // モデル生成（全部入り）
     HRESULT CreateModel(const char* Filename, const char* Motionname, MODEL_DX12* Model);
 
+    // PMDヘッダー読み込み
+    HRESULT LoadPMDHeader(FILE* file);
+
     // バーテックスバッファ生成
     HRESULT CreateVertexBuffer(MODEL_DX12* Model, std::vector<PMDVertex> vertices);
     HRESULT SettingVertexBufferView(MODEL_DX12* Model, std::vector<PMDVertex> vertices, size_t pmdVertex_size);
@@ -211,7 +216,7 @@ public:
     // IK読み込み
     HRESULT LoadIK(FILE* file, MODEL_DX12* Model);
     // nodeindexの数によって場合分け
-    void IKSolve(MODEL_DX12* Model);
+    void IKSolve(MODEL_DX12* Model, int frameNo);
     // CCD-IKによりボーン方向を解決
     void SolveCCDIK(MODEL_DX12* Model, const PMDIK& ik);
     // 余弦定理IKによりボーン方向を解決
@@ -260,6 +265,8 @@ private:
     std::vector<BoneNode*> m_boneNodeAddressArray;
 
     std::vector<uint32_t> m_kneeIdxes;
+
+    std::vector<VMDIKEnable> m_IKEnableData;
 
     // アニメーション開始時のミリ秒
     DWORD m_StartTime;

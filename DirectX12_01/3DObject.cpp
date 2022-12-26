@@ -70,14 +70,11 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 	// ラムダ式初期化
 	CreateLambdaTable();
 
-	// pmdファイル読み込み
-	PMDHeader pmdheader;
-
-	char signature[3] = {};	// シグネチャ
 	std::string ModelPath = Filename;
 	auto fp = fopen(ModelPath.c_str(), "rb");
-	fread(signature, sizeof(signature), 1, fp);
-	fread(&pmdheader, sizeof(pmdheader), 1, fp);
+
+	// PMDヘッダー読み込み
+	LoadPMDHeader(fp);
 
 	// 頂点読み込み
 	unsigned int vertNum = 0;	// 頂点数
@@ -91,6 +88,12 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 	}
 	Model->sub.vertNum = vertNum;
 
+	// 頂点バッファー作成
+	HRESULT hr = CreateVertexBuffer(Model, vertices);
+
+	// 頂点バッファービュー設定
+	hr = SettingVertexBufferView(Model, vertices, pmdVertex_size);
+
 	// インデックスバッファー読み込み
 	unsigned int indicesNum = 0;
 	fread(&indicesNum, sizeof(indicesNum), 1, fp);
@@ -99,11 +102,6 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 
 	Model->sub.indecesNum = indicesNum;
 
-	// 頂点バッファー作成
-	HRESULT hr = CreateVertexBuffer(Model, vertices);
-
-	// 頂点バッファービュー設定
-	hr = SettingVertexBufferView(Model, vertices, pmdVertex_size);
 
 	// インデックスバッファー生成
 	hr = CreateIndexBuffer(Model, indices);
@@ -132,6 +130,24 @@ HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname, MODE
 	fclose(fp);
 	return hr;
 
+}
+
+HRESULT Object3D::LoadPMDHeader(FILE* file)
+{
+	typedef struct
+	{
+		float version;          // 例：00 00 80 3F == 1.00
+		char model_name[20];    // モデル名
+		char comment[256];      // モデルコメント
+	}PMDHeader;
+
+	// pmdファイル読み込み
+	PMDHeader pmdheader;
+
+	char signature[3] = {};	// シグネチャ
+	fread(signature, sizeof(signature), 1, file);
+	fread(&pmdheader, sizeof(pmdheader), 1, file);
+	return E_NOTIMPL;
 }
 
 HRESULT Object3D::CreateVertexBuffer(MODEL_DX12* Model, std::vector<PMDVertex> vertices)
@@ -1098,7 +1114,7 @@ void Object3D::MotionUpdate(MODEL_DX12* Model)
 	}
 	RecursiveMatrixMultiply(Model, &m_BoneNodeTable["センター"], XMMatrixIdentity());
 
-	IKSolve(Model);
+	//IKSolve(Model, frameNo);
 
 	// マトリクスのコピー
 	std::copy(Model->BoneMatrix.begin(), Model->BoneMatrix.end(), Model->mappedMatrices + 1);
@@ -1180,8 +1196,8 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 		m_duration = std::max<unsigned int>(m_duration, motion.frameNo);
 	}
 
+	// 表情データ読み込み
 #pragma pack(1)
-	// 表情データ
 	struct VMDMorph
 	{
 		char name[15];		// 名前
@@ -1190,9 +1206,87 @@ HRESULT Object3D::LoadVMDData(FILE* file, MODEL_DX12* Model)
 	}; // 全部で23バイト
 #pragma pack()
 
-	uint32_t morphCount = 0;
-	fread(&morphCount, sizeof(morphCount), 1, file);
+	uint32_t vmdMorphCount = 0;
+	fread(&vmdMorphCount, sizeof(vmdMorphCount), 1, file);
+	std::vector<VMDMorph> vmdMorphsData(vmdMorphCount);
+	fread(vmdMorphsData.data(), sizeof(VMDMorph), vmdMorphCount, file);
 
+	// カメラ読み込み
+#pragma pack(1)
+	struct VMDCamera
+	{
+		uint32_t frameNo;	// フレーム番号
+		float distance;	// 距離
+		XMFLOAT3 pos;	// 座標
+		XMFLOAT3 eulerAngle; // オイラー角
+		uint8_t InterPolation[24]; // 補間
+		uint32_t fov;	// 視野角
+		uint8_t persFlag;	// パースフラグ
+	};	// 61バイト
+#pragma pack()
+
+	uint32_t vmdCameraCount = 0;
+	fread(&vmdCameraCount, sizeof(vmdCameraCount), 1, file);
+	std::vector<VMDCamera> vmdCameraData(vmdCameraCount);
+	fread(vmdCameraData.data(), sizeof(VMDCamera), vmdCameraCount, file);
+
+	// ライト読み込み
+	struct VMDLight
+	{
+		uint32_t frameNo;	// フレーム番号
+		XMFLOAT3 rgb;	// 色
+		XMFLOAT3 vec;	// 光線ベクトル
+	};
+
+	uint32_t vmdLightCount = 0;
+	fread(&vmdLightCount, sizeof(vmdLightCount), 1, file);
+	std::vector<VMDLight> vmdLightData(vmdLightCount);
+	fread(vmdLightData.data(), sizeof(VMDLight), vmdLightCount, file);
+
+	// セルフ影データ
+#pragma pack(1)
+	struct VMDSelfShadow
+	{
+		uint32_t frameNo;	// フレーム番号
+		uint8_t mode;	// 影モード
+		float distance;	// 距離
+	};
+#pragma pack()
+	
+	uint32_t vmdSelfShadowCount = 0;
+	fread(&vmdSelfShadowCount, sizeof(vmdSelfShadowCount), 1, file);
+	std::vector<VMDSelfShadow> vmdSelfShadowData(vmdSelfShadowCount);
+	fread(vmdSelfShadowData.data(), sizeof(VMDSelfShadow), vmdSelfShadowCount, file);
+
+	// IKオノフ切り替わり数
+	uint32_t ikSwitchCount = 0;
+	fread(&ikSwitchCount, sizeof(ikSwitchCount), 1, file);
+
+	m_IKEnableData.resize(ikSwitchCount);
+	for (auto& IKEnable : m_IKEnableData)
+	{
+		// キーフレーム情報なのでまずはフレーム番号読み込み
+		fread(&IKEnable, sizeof(IKEnable.frameNo), 1, file);
+
+		// 次に可視フラグがあるが使用しない
+		uint8_t visibleFlag = 0;
+		fread(&visibleFlag, sizeof(visibleFlag), 1, file);
+
+		// 対象ボーン数読み込み
+		uint32_t ikBoneCount = 0;
+		fread(&ikBoneCount, sizeof(ikBoneCount), 1, file);
+
+		// ループしつつ名前とONOFF情報取得
+		for (int i = 0; i < ikBoneCount; i++)
+		{
+			char ikBoneName[20];
+			fread(ikBoneName, sizeof(ikBoneName), 1, file);
+			uint8_t flag = 0;
+			fread(&flag, sizeof(flag), 1, file);
+			IKEnable.ikEnableTable[ikBoneName] = flag;
+		}
+		
+	}
 
 	for (auto& vmdmotion : vmdMotionData)
 	{
@@ -1294,10 +1388,31 @@ HRESULT Object3D::LoadIK(FILE* file, MODEL_DX12* Model)
 	return S_OK;
 }
 
-void Object3D::IKSolve(MODEL_DX12* Model)
+void Object3D::IKSolve(MODEL_DX12* Model, int frameNo)
 {
+	// いつもの逆から検索
+	auto it = std::find_if(m_IKEnableData.rbegin(),
+		m_IKEnableData.rend(),
+		[frameNo](const VMDIKEnable& ikenable)
+		{
+			return ikenable.frameNo <= frameNo;
+		});
+
+	// IK解決のためループ
 	for (auto& ik : Model->pmdIKData)
 	{
+		if (it != m_IKEnableData.rend())
+		{
+			auto ikEnableit = it->ikEnableTable.find(m_BoneNameArray[ik.boneIdx]);
+
+			if (ikEnableit != it->ikEnableTable.end())
+			{
+				if (!ikEnableit->second)	// もしOFFなら打ち切る
+				{
+					continue;
+				}
+			}
+		}
 		auto childNodesCount = ik.nodeIdx.size();
 
 		switch (childNodesCount)
