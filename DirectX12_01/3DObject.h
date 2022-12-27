@@ -3,94 +3,10 @@
 // ロード用ラムダ式
 using LoadLambda_t = std::function<HRESULT(const std::wstring& path, TexMetadata*, ScratchImage&)>;
 
-
-typedef struct
-{
-    unsigned int vertNum;
-    unsigned int indecesNum;
-    unsigned int materialNum;
-    unsigned long long materialBufferSize;
-}SUBSET;
-
-typedef struct
-{
-    unsigned char R, G, B, A;
-}TEXRGBA;
-
-typedef struct
-{
-    uint16_t boneIdx;   // IK対象のボーンを示す
-    uint16_t targetIdx; // ターゲットに近づけるためのボーンインデックス
-    uint16_t iterations; // 試行回数
-    float limit;        // 1回あたりの回転制限
-    std::vector<uint16_t> nodeIdx;  // 間のノード番号
-}PMDIK;
-
-// IKオノフデータ
-typedef struct
-{
-    uint32_t frameNo;
-    std::unordered_map<std::string, bool> ikEnableTable;
-}VMDIKEnable;
-
-// シェーダーに転送するデータ
-typedef struct
-{
-    XMFLOAT3 diffuse;   // ディフューズ色
-    float alpha;        // ディフューズ
-    XMFLOAT3 specular;  // スペキュラ色
-    float specularity;   // スペキュラの強さ
-    XMFLOAT3 ambient;   // アンビエント色
-
-}MaterialForHlsl;
-
-// それ以外のマテリアルデータ
-typedef struct
-{
-    std::string texPath;    // テクスチャパス
-    int toonIdx;            // トゥーン番号
-    bool edgeFlg;           // マテリアルごとの輪郭線フラグ
-
-}AdditionalMaterial;
-
-// 全体をまとめるデータ
-typedef struct
-{
-    unsigned int indicesNum;
-    MaterialForHlsl material;
-    AdditionalMaterial additional;
-}MATERIAL;
-
-typedef struct
-{
-    XMFLOAT4X4 world; // モデル本体を回転させたり移動させたりする
-}TRANSFORM;
-
-struct BoneNode
-{
-    uint32_t boneIdx = 0;    // ボーンインデックス
-    uint32_t boneType;
-    uint32_t ikParentBone;
-    XMFLOAT3 startPos = {0, 0, 0};  // ボーン基準点（回転の中心）
-    XMFLOAT3 endPos = { 0, 0, 0 };    // ボーン先端店（実際のスキニングには利用しない）
-    std::vector<BoneNode*>  children;   // 子ノード
-};
-
-struct KeyFrame
-{
-    unsigned int frameNo;   // アニメーション開始からのフレーム数
-    XMVECTOR quaternion;    // クォータニオン
-    XMFLOAT3 offset;
-    XMFLOAT2 p1, p2;
-
-    KeyFrame(unsigned int fno, XMVECTOR& q, XMFLOAT3& ofst, const XMFLOAT2& ip1, const XMFLOAT2& ip2) 
-        : frameNo(fno), quaternion(q), offset(ofst), p1(ip1), p2(ip2)
-    {}
-};
-
 class Object3D
 {
 public:
+
     // モデル生成（全部入り）
     HRESULT CreateModel(const char* Filename, const char* Motionname);
 
@@ -121,18 +37,6 @@ public:
     HRESULT LoadVMDData(FILE* file);
     // IK読み込み
     HRESULT LoadIK(FILE* file);
-    // nodeindexの数によって場合分け
-    void IKSolve(int frameNo);
-    // CCD-IKによりボーン方向を解決
-    void SolveCCDIK(const PMDIK& ik);
-    // 余弦定理IKによりボーン方向を解決
-    void SolveCosineIK(const PMDIK& ik);
-    // LookAt行列によりボーン方向を解決
-    void SolveLookAtIK(const PMDIK& ik);
-
-
-    // ボーンを子の末端まで伝える再帰関数
-    void RecursiveMatrixMultiply(BoneNode* node, const XMMATRIX& mat, bool flag = false);
 
     std::string GetTexturePathFromModelandTexPath(const std::string& modelPath, const char* texPath);
     std::wstring GetWideStringFromString(const std::string& str);
@@ -153,6 +57,84 @@ public:
     void UnInit();
 
 private:
+    typedef struct
+    {
+        unsigned int vertNum;
+        unsigned int indecesNum;
+        unsigned int materialNum;
+        unsigned long long materialBufferSize;
+    }SUBSET;
+
+    typedef struct
+    {
+        uint16_t boneIdx;   // IK対象のボーンを示す
+        uint16_t targetIdx; // ターゲットに近づけるためのボーンインデックス
+        uint16_t iterations; // 試行回数
+        float limit;        // 1回あたりの回転制限
+        std::vector<uint16_t> nodeIdx;  // 間のノード番号
+    }PMDIK;
+
+    // IKオノフデータ
+    typedef struct
+    {
+        uint32_t frameNo;
+        std::unordered_map<std::string, bool> ikEnableTable;
+    }VMDIKEnable;
+
+    // シェーダーに転送するデータ
+    typedef struct
+    {
+        XMFLOAT3 diffuse;   // ディフューズ色
+        float alpha;        // ディフューズ
+        XMFLOAT3 specular;  // スペキュラ色
+        float specularity;   // スペキュラの強さ
+        XMFLOAT3 ambient;   // アンビエント色
+
+    }MaterialForHlsl;
+
+    // それ以外のマテリアルデータ
+    typedef struct
+    {
+        std::string texPath;    // テクスチャパス
+        int toonIdx;            // トゥーン番号
+        bool edgeFlg;           // マテリアルごとの輪郭線フラグ
+
+    }AdditionalMaterial;
+
+    // 全体をまとめるデータ
+    typedef struct
+    {
+        unsigned int indicesNum;
+        MaterialForHlsl material;
+        AdditionalMaterial additional;
+    }MATERIAL;
+
+    typedef struct
+    {
+        XMFLOAT4X4 world; // モデル本体を回転させたり移動させたりする
+    }TRANSFORM;
+
+    struct BoneNode
+    {
+        uint32_t boneIdx = 0;    // ボーンインデックス
+        uint32_t boneType;
+        uint32_t ikParentBone;
+        XMFLOAT3 startPos = { 0, 0, 0 };  // ボーン基準点（回転の中心）
+        XMFLOAT3 endPos = { 0, 0, 0 };    // ボーン先端店（実際のスキニングには利用しない）
+        std::vector<BoneNode*>  children;   // 子ノード
+    };
+
+    struct KeyFrame
+    {
+        unsigned int frameNo;   // アニメーション開始からのフレーム数
+        XMVECTOR quaternion;    // クォータニオン
+        XMFLOAT3 offset;
+        XMFLOAT2 p1, p2;
+
+        KeyFrame(unsigned int fno, XMVECTOR& q, XMFLOAT3& ofst, const XMFLOAT2& ip1, const XMFLOAT2& ip2)
+            : frameNo(fno), quaternion(q), offset(ofst), p1(ip1), p2(ip2)
+        {}
+    };
 
     ComPtr<ID3D12Resource> VertexBuffer;    // 頂点バッファー
     D3D12_VERTEX_BUFFER_VIEW vbView;  // 頂点バッファービュー
@@ -211,6 +193,18 @@ private:
     DWORD m_StartTime;
     unsigned int m_duration;
 
+    // nodeindexの数によって場合分け
+    void IKSolve(int frameNo);
+    // CCD-IKによりボーン方向を解決
+    void SolveCCDIK(const PMDIK& ik);
+    // 余弦定理IKによりボーン方向を解決
+    void SolveCosineIK(const PMDIK& ik);
+    // LookAt行列によりボーン方向を解決
+    void SolveLookAtIK(const PMDIK& ik);
+
+
+    // ボーンを子の末端まで伝える再帰関数
+    void RecursiveMatrixMultiply(BoneNode* node, const XMMATRIX& mat, bool flag = false);
 
     float GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n);
 };

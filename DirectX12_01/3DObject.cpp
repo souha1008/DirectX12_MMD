@@ -5,7 +5,6 @@
 using namespace DirectX;
 
 // テクスチャ情報
-//std::vector<TEXRGBA> g_Texture(256 * 256);
 
 namespace
 {
