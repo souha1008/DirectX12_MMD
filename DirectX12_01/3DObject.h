@@ -205,8 +205,6 @@ private:
 
     // ボーンを子の末端まで伝える再帰関数
     void RecursiveMatrixMultiply(BoneNode* node, const XMMATRIX& mat, bool flag = false);
-
-    float GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n);
 };
 
 

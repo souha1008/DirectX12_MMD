@@ -2,10 +2,6 @@
 #include "DX12Renderer.h"
 #include "3DObject.h"
 
-using namespace DirectX;
-
-// ƒeƒNƒXƒ`ƒƒî•ñ
-
 namespace
 {
 	XMMATRIX LookAtMatrix(const XMVECTOR& lookat, const XMFLOAT3& up, const XMFLOAT3& right)
@@ -48,6 +44,41 @@ namespace
 		return XMMatrixTranspose(LookAtMatrix(origin, up, right)) * LookAtMatrix(lookat, up, right);
 	}
 
+	float GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n)
+	{
+		if (a.x == a.y && b.x == b.y)
+		{
+			return x;	// ŒvZ•s—v
+		}
+
+		float t = x;
+		const float k0 = 1 + 3 * a.x - 3 * b.x;	// t^3‚ÌŒW”
+		const float k1 = 3 * b.x - 6 * a.x;		// t^2‚ÌŒW”
+		const float k2 = 3 * a.x;				// t‚ÌŒW”
+
+		// Œë·‚Ì”ÍˆÍ“à‚©‚Ç‚¤‚©‚Ég—p‚·‚é’è”
+		constexpr float epsilon = 0.0005f;
+
+		// t‚ğ‹Ö‚¶‚Å‹‚ß‚é
+		for (int i = 0; i < n; i++)
+		{
+			// f(t)‚ğ‹‚ß‚é
+			float ft = k0 * t * t * t + k1 * t * t + k2 * t - x;
+
+			// ‚à‚µŒ‹‰Ê‚ª‚O‚É‹ß‚¢‚È‚ç‘Å‚¿Ø‚é
+			if (ft <= epsilon && ft >= -epsilon)
+			{
+				break;
+			}
+
+			t -= ft / 2;
+		}
+
+		float r = 1 - t;
+
+		return t * t * t + 3 * t * t * r * b.y + 3 * t * r * r * a.y;
+	}
+
 	enum class BoneType
 	{
 		Rotation,		// ‰ñ“]
@@ -61,11 +92,8 @@ namespace
 	};
 }
 
-
 HRESULT Object3D::CreateModel(const char* Filename, const char* Motionname)
 {
-	//HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
-
 	// ƒ‰ƒ€ƒ_®‰Šú‰»
 	CreateLambdaTable();
 
@@ -895,41 +923,6 @@ std::pair<std::string, std::string> Object3D::SplitFileName(const std::string& p
 	ret.second = path.substr(idx + 1, path.length() - idx - 1);
 	
 	return ret;
-}
-
-float Object3D::GetYFromXonBezier(float x, const XMFLOAT2& a, const XMFLOAT2& b, uint8_t n)
-{
-	if (a.x == a.y && b.x == b.y)
-	{
-		return x;	// ŒvZ•s—v
-	}
-
-	float t = x;
-	const float k0 = 1 + 3 * a.x - 3 * b.x;	// t^3‚ÌŒW”
-	const float k1 = 3 * b.x - 6 * a.x;		// t^2‚ÌŒW”
-	const float k2 = 3 * a.x;				// t‚ÌŒW”
-
-	// Œë·‚Ì”ÍˆÍ“à‚©‚Ç‚¤‚©‚Ég—p‚·‚é’è”
-	constexpr float epsilon = 0.0005f;
-
-	// t‚ğ‹Ö‚¶‚Å‹‚ß‚é
-	for (int i = 0; i < n; i++)
-	{
-		// f(t)‚ğ‹‚ß‚é
-		float ft = k0 * t * t * t + k1 * t * t + k2 * t - x;
-
-		// ‚à‚µŒ‹‰Ê‚ª‚O‚É‹ß‚¢‚È‚ç‘Å‚¿Ø‚é
-		if (ft <= epsilon && ft >= -epsilon)
-		{
-			break;
-		}
-
-		t -= ft / 2;
-	}
-
-	float r = 1 - t;
-
-	return t * t * t + 3 * t * t * r * b.y + 3 * t * r * r * a.y;
 }
 
 void Object3D::MotionUpdate()
