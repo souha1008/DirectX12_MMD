@@ -39,6 +39,13 @@ public:
     static HRESULT CreateRootSignature();
     static HRESULT CreatePipelineState();
 
+    static HRESULT CreatePeraResource();
+    static HRESULT CreatePeraVertex();
+    static HRESULT CreatePeraPipeline();
+    static HRESULT PreDrawToPera1();
+    static void PostDrawToPera1();
+    static void DrawPera();
+
     static HRESULT CreateSceneConstBuffer();
     static void SetView(XMFLOAT4X4* view) 
     {
@@ -85,6 +92,15 @@ private:
     static ComPtr<ID3D12RootSignature> m_RootSignature;
     static ComPtr<ID3D12PipelineState> m_PipelineState;
 
+    // レンダリングの書き込み先を作る
+    static ComPtr<ID3D12Resource> m_PeraResource;
+    static ComPtr<ID3D12DescriptorHeap> m_PeraRTVHeap;
+    static ComPtr<ID3D12DescriptorHeap> m_PeraSRVHeap;
+    static ComPtr<ID3D12Resource> m_PeraVB;
+    static D3D12_VERTEX_BUFFER_VIEW m_peraVBView;
+    static ComPtr<ID3D12RootSignature> m_PeraRootSig;
+    static ComPtr<ID3D12PipelineState> m_PeraPipelineState;
+
     static ComPtr<ID3D12Resource> m_SceneConstBuffer;    // ビュー用定数バッファ
     static ComPtr<ID3D12DescriptorHeap> m_sceneDescHeap;  // ビュー用デスクリプタヒープ
     static SCENEMATRIX* m_MappedSceneMatrix;    // ビュー用
@@ -103,6 +119,7 @@ private:
     static UINT64 m_FenceVal;
 
     static D3D12_RESOURCE_BARRIER m_Barrier;
+
 
 };
 

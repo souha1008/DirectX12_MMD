@@ -82,7 +82,8 @@ void MainManager::Draw()
     // ここにオブジェクトの描画
     DX12Renderer::Begin();
 
-    g_HatsuneMiku->Draw();
+    DX12Renderer::DrawPera();
+    //g_HatsuneMiku->Draw();
 
     DX12Renderer::End();
 
