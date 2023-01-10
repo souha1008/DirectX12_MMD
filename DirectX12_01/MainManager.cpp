@@ -57,6 +57,9 @@ void MainManager::Update()
 
 void MainManager::Draw()
 {
+    DX12Renderer::Draw3D();
+    // ペラポリゴン描画準備
+    g_Pera->PrePeraDraw();
 
     DX12Renderer::LIGHT light;
     light.Enable = true;
@@ -76,6 +79,10 @@ void MainManager::Draw()
 
     DX12Renderer::SetLight(light);
 
+    // 3D描画
+    g_HatsuneMiku->Draw();
+    g_Pera->PostPeraDraw();
+
     // シャドウバッファの作成
     //DX12Renderer::BeginDepthShadow();
     // ライトのカメラ行列をセット
@@ -84,17 +91,11 @@ void MainManager::Draw()
 
     // ここにオブジェクトの描画
     
-    // ぺらポリゴン描画準備
-    g_Pera->PrePeraDraw();
 
     DX12Renderer::Begin();
 
-    // 3D描画
-    DX12Renderer::Draw3D();
-    g_HatsuneMiku->Draw();
-    
+    //g_HatsuneMiku->Draw();
     g_Pera->PeraDraw1();
-    g_Pera->PostPeraDraw();
 
     DX12Renderer::End();
 

@@ -125,9 +125,7 @@ void DX12Renderer::Begin()
 	m_GCmdList->ClearRenderTargetView(rtvH, clear_color, 0, nullptr);
 	m_GCmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-	// ビューポートセット
-	m_GCmdList->RSSetViewports(1, &g_Viewport);
-	m_GCmdList->RSSetScissorRects(1, &g_Scissorect);
+
 
 
 
@@ -153,6 +151,10 @@ void DX12Renderer::Draw3D()
 	m_GCmdList.Get()->SetDescriptorHeaps(1, light_dh);
 	auto light_handle = m_LightDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
 	m_GCmdList.Get()->SetGraphicsRootDescriptorTable(3, light_handle);
+
+	// ビューポートセット
+	m_GCmdList->RSSetViewports(1, &g_Viewport);
+	m_GCmdList->RSSetScissorRects(1, &g_Scissorect);
 }
 
 void DX12Renderer::End()
@@ -423,7 +425,7 @@ HRESULT DX12Renderer::CreateRenderTargetView()
 	// sRGBレンダーターゲットビュー設定
 	D3D12_RENDER_TARGET_VIEW_DESC rtvd = {};
 
-	rtvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	rtvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	rtvd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE deschandle = m_DescHeap->GetCPUDescriptorHandleForHeapStart();
@@ -629,7 +631,7 @@ HRESULT DX12Renderer::CreatePipelineState()
 	gpsd.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;//三角形で構成
 
 	gpsd.NumRenderTargets = 1;//今は１つのみ
-	gpsd.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;//0～1に正規化されたRGBA
+	gpsd.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;//0～1に正規化されたRGBA
 
 	gpsd.SampleDesc.Count = 1;//サンプリングは1ピクセルにつき１
 	gpsd.SampleDesc.Quality = 0;//クオリティは最低
@@ -853,6 +855,11 @@ void PeraPolygon::PeraDraw1()
 	DX12Renderer::GetGraphicsCommandList()->SetPipelineState(m_PeraPipelineState.Get());
 	DX12Renderer::GetGraphicsCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	DX12Renderer::GetGraphicsCommandList()->IASetVertexBuffers(0, 1, &m_PeraVBView);
+
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, m_PeraSRVDescHeap.GetAddressOf());
+	auto srvhandle = m_PeraSRVDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, srvhandle);
+	
 	DX12Renderer::GetGraphicsCommandList()->DrawInstanced(4, 1, 0, 0);
 }
 
@@ -911,6 +918,21 @@ void PeraPolygon::CreatePeraPipeline()
 {
 	HRESULT hr;
 
+	D3D12_DESCRIPTOR_RANGE dr = {};
+	dr.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	dr.BaseShaderRegister = 0;
+	dr.NumDescriptors = 1;
+
+	D3D12_ROOT_PARAMETER rp = {};
+	rp.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rp.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rp.DescriptorTable.pDescriptorRanges = &dr;
+	rp.DescriptorTable.NumDescriptorRanges = 1;
+
+	D3D12_STATIC_SAMPLER_DESC ssd = CD3DX12_STATIC_SAMPLER_DESC(0);
+	ssd.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+	ssd.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+
 	ComPtr<ID3DBlob> vs;
 	ComPtr<ID3DBlob> ps;
 	ComPtr<ID3DBlob> rs;
@@ -958,8 +980,10 @@ void PeraPolygon::CreatePeraPipeline()
 	};
 
 	D3D12_ROOT_SIGNATURE_DESC rsd = {};
-	rsd.NumParameters = 0;
-	rsd.NumStaticSamplers = 0;
+	rsd.NumParameters = 1;
+	rsd.pParameters = &rp;
+	rsd.NumStaticSamplers = 1;
+	rsd.pStaticSamplers = &ssd;
 	rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	hr = D3D12SerializeRootSignature(
@@ -981,6 +1005,8 @@ void PeraPolygon::CreatePeraPipeline()
 	gpsd.InputLayout.pInputElementDescs = layout;
 	gpsd.VS = CD3DX12_SHADER_BYTECODE(vs.Get());
 	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	gpsd.DepthStencilState.DepthEnable = false;
+	gpsd.DepthStencilState.StencilEnable = false;
 	gpsd.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	gpsd.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	gpsd.NumRenderTargets = 1;
