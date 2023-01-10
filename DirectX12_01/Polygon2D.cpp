@@ -45,8 +45,8 @@ void Polygon2D::Draw()
 
 	// インデックスバッファービューセット
 	DX12Renderer::GetGraphicsCommandList()->IASetIndexBuffer(&m_ibView);
-	
 
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, &m_basicDescHeap);
 
 	// 描画処理
 	//DX12Renderer::GetGraphicsCommandList()->DrawIndexedInstanced(m_Model.sub.indecesNum, 1, 0, 0, 0);

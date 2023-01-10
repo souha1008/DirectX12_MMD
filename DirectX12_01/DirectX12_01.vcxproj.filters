@@ -22,6 +22,12 @@
     <ClCompile Include="Obj_HatsuneMiku.cpp">
       <Filter>ソースファイル\オブジェクト\3Dオブジェクト</Filter>
     </ClCompile>
+    <ClCompile Include="Title.cpp">
+      <Filter>ソースファイル\メインモジュール</Filter>
+    </ClCompile>
+    <ClCompile Include="input.cpp">
+      <Filter>ソースファイル\メインモジュール</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -53,6 +59,12 @@
     </ClInclude>
     <ClInclude Include="Obj_HatsuneMiku.h">
       <Filter>ヘッダーファイル\オブジェクト\3Dオブジェクト</Filter>
+    </ClInclude>
+    <ClInclude Include="Title.h">
+      <Filter>ヘッダーファイル\モジュール</Filter>
+    </ClInclude>
+    <ClInclude Include="input.h">
+      <Filter>ヘッダーファイル\モジュール</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
