@@ -14,7 +14,7 @@
 // インスタンス
 Obj_HatsuneMiku* g_HatsuneMiku;
 Audio* g_bgm;
-
+PeraPolygon* g_Pera;
 
 void MainManager::Init()
 {
@@ -26,10 +26,13 @@ void MainManager::Init()
 
     g_HatsuneMiku = new Obj_HatsuneMiku();
     g_bgm = new Audio();
+    g_Pera = new PeraPolygon();
 
-    //g_Polygon2D->Init();
     g_HatsuneMiku->Init();
-    
+    g_Pera->CreatePeraResorce();
+    g_Pera->CreatePeraVertex();
+    g_Pera->CreatePeraPipeline();
+
     g_bgm->Load("Assets/Audio/アンノウン・マザーグース.wav");
     //g_bgm->Play();
 }
@@ -80,9 +83,18 @@ void MainManager::Draw()
     //DX12Renderer::SetProj(&light.ProjMatrix);
 
     // ここにオブジェクトの描画
+    
+    // ぺらポリゴン描画準備
+    g_Pera->PrePeraDraw();
+
     DX12Renderer::Begin();
 
+    // 3D描画
+    DX12Renderer::Draw3D();
     g_HatsuneMiku->Draw();
+    
+    g_Pera->PeraDraw1();
+    g_Pera->PostPeraDraw();
 
     DX12Renderer::End();
 

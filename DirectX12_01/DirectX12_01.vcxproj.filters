@@ -137,9 +137,18 @@
     <FxCompile Include="LightingPixelShader.hlsl">
       <Filter>ソースファイル\シェーダー</Filter>
     </FxCompile>
+    <FxCompile Include="PeraVertexShader.hlsl">
+      <Filter>ソースファイル\シェーダー</Filter>
+    </FxCompile>
+    <FxCompile Include="PeraPixelShader.hlsl">
+      <Filter>ソースファイル\シェーダー</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicShaderHeader.hlsli">
+      <Filter>ヘッダーファイル\シェーダー</Filter>
+    </None>
+    <None Include="PeraHeader.hlsli">
       <Filter>ヘッダーファイル\シェーダー</Filter>
     </None>
   </ItemGroup>

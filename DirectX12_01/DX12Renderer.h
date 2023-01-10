@@ -19,6 +19,7 @@ public:
     static void Init();     // 初期化
     static void Uninit();   // 終了
     static void Begin();    // 描画開始処理
+    static void Draw3D();   // 3D空間描画の為のセッティング
     static void End();      // コマンドリスト等描画実行処理
 
     static void EnableDebugLayer();     // 出力にデバッグ情報を表示
@@ -63,7 +64,20 @@ public:
         m_GCmdList.Get()->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     }
 
+    static ID3D12DescriptorHeap* GetRTVDescHeap()
+    {
+        return m_DescHeap.Get();
+    }
 
+    static std::vector<ID3D12Resource*> GetBackBuffers()
+    {
+        return m_BackBuffers;
+    }
+
+    static ID3D12DescriptorHeap* GetDSVDescHeap()
+    {
+        return m_DSVDescHeap.Get();
+    }
 
 private:
     typedef struct
@@ -103,6 +117,27 @@ private:
     static UINT64 m_FenceVal;
 
     static D3D12_RESOURCE_BARRIER m_Barrier;
+
+};
+
+class PeraPolygon
+{
+public:
+    void CreatePeraResorce();
+    void PrePeraDraw();
+    void PeraDraw1();
+    void PostPeraDraw();
+    void CreatePeraVertex();
+    void CreatePeraPipeline();
+
+private:
+    ComPtr<ID3D12Resource> m_PeraResource;
+    ComPtr<ID3D12DescriptorHeap> m_PeraRTVDescHeap; // レンダーターゲット用
+    ComPtr<ID3D12DescriptorHeap> m_PeraSRVDescHeap; // テクスチャ用
+    ComPtr<ID3D12Resource> m_PeraVB;
+    D3D12_VERTEX_BUFFER_VIEW m_PeraVBView;
+    ComPtr<ID3D12RootSignature> m_PeraRootSignature;
+    ComPtr<ID3D12PipelineState> m_PeraPipelineState;
 
 };
 

@@ -129,6 +129,13 @@ void DX12Renderer::Begin()
 	m_GCmdList->RSSetViewports(1, &g_Viewport);
 	m_GCmdList->RSSetScissorRects(1, &g_Scissorect);
 
+
+
+
+}
+
+void DX12Renderer::Draw3D()
+{
 	// ルートシグネチャセット
 	m_GCmdList->SetGraphicsRootSignature(m_RootSignature.Get());
 
@@ -146,10 +153,6 @@ void DX12Renderer::Begin()
 	m_GCmdList.Get()->SetDescriptorHeaps(1, light_dh);
 	auto light_handle = m_LightDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
 	m_GCmdList.Get()->SetGraphicsRootDescriptorTable(3, light_handle);
-
-
-
-
 }
 
 void DX12Renderer::End()
@@ -746,4 +749,248 @@ HRESULT DX12Renderer::SetLight(LIGHT light)
 	m_mapLight->ProjMatrix = light.ProjMatrix;
 	
 	return S_OK;
+}
+
+void PeraPolygon::CreatePeraResorce()
+{
+	// 作成済みのヒープ情報を使って作る
+	D3D12_DESCRIPTOR_HEAP_DESC hd = DX12Renderer::GetRTVDescHeap()->GetDesc();
+
+	// 使っているバックバッファーの情報を利用する
+	auto bbuff = DX12Renderer::GetBackBuffers();
+
+	D3D12_RESOURCE_DESC rd = bbuff[0]->GetDesc();
+
+	D3D12_HEAP_PROPERTIES hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+	// レンダリング時のクリア値と同じ値
+	float clsClr[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+
+	D3D12_CLEAR_VALUE clearValue = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, clsClr);
+
+	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
+		&hp,
+		D3D12_HEAP_FLAG_NONE,
+		&rd,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		&clearValue,
+		IID_PPV_ARGS(m_PeraResource.ReleaseAndGetAddressOf())
+	);
+
+	// RTV用ヒープを作る
+	hd.NumDescriptors = 1;
+	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
+		&hd,
+		IID_PPV_ARGS(m_PeraRTVDescHeap.ReleaseAndGetAddressOf())
+	);
+	D3D12_RENDER_TARGET_VIEW_DESC rtvd = {};
+	rtvd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	rtvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	// RTVを作る
+	DX12Renderer::GetDevice()->CreateRenderTargetView(
+		m_PeraResource.Get(),
+		&rtvd,
+		m_PeraRTVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart()
+	);
+
+	// SRV用ヒープを作る
+	hd.NumDescriptors = 1;
+	hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
+	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
+		&hd,
+		IID_PPV_ARGS(m_PeraSRVDescHeap.ReleaseAndGetAddressOf())
+	);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvd = {};
+	srvd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvd.Format = rtvd.Format;
+	srvd.Texture2D.MipLevels = 1;
+	srvd.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	// SRVを作る
+	DX12Renderer::GetDevice()->CreateShaderResourceView(
+		m_PeraResource.Get(),
+		&srvd,
+		m_PeraSRVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart()
+	);
+
+}
+
+void PeraPolygon::PrePeraDraw()
+{
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_PeraResource.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	);
+
+	DX12Renderer::GetGraphicsCommandList()->ResourceBarrier(
+		1,
+		&barrier
+	);
+
+	// 1パス目
+	auto rtvHeapHandle = m_PeraRTVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	auto dsvHeapHandle = DX12Renderer::GetDSVDescHeap()->GetCPUDescriptorHandleForHeapStart();
+
+	DX12Renderer::GetGraphicsCommandList()->OMSetRenderTargets(
+		1,
+		&rtvHeapHandle,
+		false,
+		&dsvHeapHandle
+	);
+	float clsClr[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+	DX12Renderer::GetGraphicsCommandList()->ClearRenderTargetView(rtvHeapHandle, clsClr, 0, nullptr);
+	DX12Renderer::GetGraphicsCommandList()->ClearDepthStencilView(dsvHeapHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+}
+
+void PeraPolygon::PeraDraw1()
+{
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootSignature(m_PeraRootSignature.Get());
+	DX12Renderer::GetGraphicsCommandList()->SetPipelineState(m_PeraPipelineState.Get());
+	DX12Renderer::GetGraphicsCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	DX12Renderer::GetGraphicsCommandList()->IASetVertexBuffers(0, 1, &m_PeraVBView);
+	DX12Renderer::GetGraphicsCommandList()->DrawInstanced(4, 1, 0, 0);
+}
+
+void PeraPolygon::PostPeraDraw()
+{
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_PeraResource.Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+	);
+
+	DX12Renderer::GetGraphicsCommandList()->ResourceBarrier(
+		1,
+		&barrier
+	);
+}
+
+void PeraPolygon::CreatePeraVertex()
+{
+	typedef struct
+	{
+		XMFLOAT3 pos;
+		XMFLOAT2 uv;
+	}PeraVertex;
+
+	PeraVertex pv[4] = {
+		{{-1, -1, 0.1f}, {0, 1}},	// 左下
+		{{-1, 1, 0.1f}, {0, 0}},	// 左上
+		{{1, -1, 0.1f}, {1, 1}},	// 右下
+		{{1, 1, 0.1f}, {1, 0}}		// 右上
+	};
+
+	auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	auto rd = CD3DX12_RESOURCE_DESC::Buffer(sizeof(pv));
+
+	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
+		&hp,
+		D3D12_HEAP_FLAG_NONE,
+		&rd,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_PeraVB.ReleaseAndGetAddressOf())
+	);
+	m_PeraVBView.BufferLocation = m_PeraVB.Get()->GetGPUVirtualAddress();
+	m_PeraVBView.SizeInBytes = sizeof(pv);
+	m_PeraVBView.StrideInBytes = sizeof(PeraVertex);
+
+	PeraVertex* mappedPera = nullptr;
+	m_PeraVB.Get()->Map(0, nullptr, (void**)&mappedPera);
+	std::copy(std::begin(pv), std::end(pv), mappedPera);
+	m_PeraVB.Get()->Unmap(0, nullptr);
+
+}
+
+void PeraPolygon::CreatePeraPipeline()
+{
+	HRESULT hr;
+
+	ComPtr<ID3DBlob> vs;
+	ComPtr<ID3DBlob> ps;
+	ComPtr<ID3DBlob> rs;
+	ComPtr<ID3DBlob> errBlob;
+
+	hr = D3DCompileFromFile(
+		L"PeraVertexShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"vs", "vs_5_0", 0, 0,
+		vs.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+
+	hr = D3DCompileFromFile(
+		L"PeraPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"ps", "ps_5_0", 0, 0,
+		ps.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+
+
+	D3D12_INPUT_ELEMENT_DESC layout[2] =
+	{
+		{
+			"POSITION",
+			0,
+			DXGI_FORMAT_R32G32B32_FLOAT,
+			0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+			0
+		},
+		{
+			"TEXCOORD",
+			0,
+			DXGI_FORMAT_R32G32_FLOAT,
+			0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+			0
+		},
+	};
+
+	D3D12_ROOT_SIGNATURE_DESC rsd = {};
+	rsd.NumParameters = 0;
+	rsd.NumStaticSamplers = 0;
+	rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	hr = D3D12SerializeRootSignature(
+		&rsd,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		rs.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+
+	hr = DX12Renderer::GetDevice()->CreateRootSignature(
+		0,
+		rs.Get()->GetBufferPointer(),
+		rs.Get()->GetBufferSize(),
+		IID_PPV_ARGS(m_PeraRootSignature.ReleaseAndGetAddressOf())
+	);
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpsd = {};
+	gpsd.InputLayout.NumElements = _countof(layout);
+	gpsd.InputLayout.pInputElementDescs = layout;
+	gpsd.VS = CD3DX12_SHADER_BYTECODE(vs.Get());
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	gpsd.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	gpsd.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	gpsd.NumRenderTargets = 1;
+	gpsd.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	gpsd.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	gpsd.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+	gpsd.SampleDesc.Count = 1;
+	gpsd.SampleDesc.Quality = 0;
+	gpsd.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+	gpsd.pRootSignature = m_PeraRootSignature.Get();
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_PeraPipelineState.ReleaseAndGetAddressOf()));
+
 }
