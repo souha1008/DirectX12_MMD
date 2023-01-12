@@ -1,5 +1,8 @@
 #include "framework.h"
 #include "DX12Renderer.h"
+#include "Helper.h"
+
+#define PS_ENTRYPOINT	"GaussianBlur"
 
 // staticメンバ変数
 ComPtr<ID3D12Device> DX12Renderer::m_Device = nullptr;
@@ -797,7 +800,7 @@ void PeraPolygon::CreatePeraResorce()
 	);
 
 	// SRV用ヒープを作る
-	hd.NumDescriptors = 1;
+	hd.NumDescriptors = 2;
 	hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -805,6 +808,8 @@ void PeraPolygon::CreatePeraResorce()
 		&hd,
 		IID_PPV_ARGS(m_PeraSRVDescHeap.ReleaseAndGetAddressOf())
 	);
+
+	auto handle = m_PeraSRVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvd = {};
 	srvd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -816,8 +821,15 @@ void PeraPolygon::CreatePeraResorce()
 	DX12Renderer::GetDevice()->CreateShaderResourceView(
 		m_PeraResource.Get(),
 		&srvd,
-		m_PeraSRVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart()
+		handle
 	);
+
+	handle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
+	cbvd.BufferLocation = m_BokehParamResource.Get()->GetGPUVirtualAddress();
+	cbvd.SizeInBytes = m_BokehParamResource.Get()->GetDesc().Width;
+	
+	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, handle);
 
 }
 
@@ -859,6 +871,8 @@ void PeraPolygon::PeraDraw1()
 	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, m_PeraSRVDescHeap.GetAddressOf());
 	auto srvhandle = m_PeraSRVDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
 	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, srvhandle);
+	srvhandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(1, srvhandle);
 	
 	DX12Renderer::GetGraphicsCommandList()->DrawInstanced(4, 1, 0, 0);
 }
@@ -918,16 +932,23 @@ void PeraPolygon::CreatePeraPipeline()
 {
 	HRESULT hr;
 
-	D3D12_DESCRIPTOR_RANGE dr = {};
-	dr.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	dr.BaseShaderRegister = 0;
-	dr.NumDescriptors = 1;
+	D3D12_DESCRIPTOR_RANGE dr[2] = {};
+	dr[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	dr[0].BaseShaderRegister = 0;
+	dr[0].NumDescriptors = 1;
+	dr[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	dr[1].BaseShaderRegister = 0;
+	dr[1].NumDescriptors = 1;
 
-	D3D12_ROOT_PARAMETER rp = {};
-	rp.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rp.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rp.DescriptorTable.pDescriptorRanges = &dr;
-	rp.DescriptorTable.NumDescriptorRanges = 1;
+	D3D12_ROOT_PARAMETER rp[2] = {};
+	rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rp[0].DescriptorTable.pDescriptorRanges = &dr[0];
+	rp[0].DescriptorTable.NumDescriptorRanges = 1;
+	rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rp[1].DescriptorTable.pDescriptorRanges = &dr[1];
+	rp[1].DescriptorTable.NumDescriptorRanges = 1;
 
 	D3D12_STATIC_SAMPLER_DESC ssd = CD3DX12_STATIC_SAMPLER_DESC(0);
 	ssd.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -951,7 +972,7 @@ void PeraPolygon::CreatePeraPipeline()
 		L"PeraPixelShader.hlsl",
 		nullptr,
 		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-		"ps", "ps_5_0", 0, 0,
+		PS_ENTRYPOINT, "ps_5_0", 0, 0,
 		ps.ReleaseAndGetAddressOf(),
 		errBlob.ReleaseAndGetAddressOf()
 	);
@@ -980,8 +1001,8 @@ void PeraPolygon::CreatePeraPipeline()
 	};
 
 	D3D12_ROOT_SIGNATURE_DESC rsd = {};
-	rsd.NumParameters = 1;
-	rsd.pParameters = &rp;
+	rsd.NumParameters = 2;
+	rsd.pParameters = rp;
 	rsd.NumStaticSamplers = 1;
 	rsd.pStaticSamplers = &ssd;
 	rsd.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -1018,5 +1039,47 @@ void PeraPolygon::CreatePeraPipeline()
 	gpsd.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	gpsd.pRootSignature = m_PeraRootSignature.Get();
 	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_PeraPipelineState.ReleaseAndGetAddressOf()));
+
+}
+
+std::vector<float> PeraPolygon::GetGaussianWeights(size_t count, float s)
+{
+	std::vector<float> weights(count);
+	float x = 0.0f;
+	float total = 0.0f;
+	for (auto& wgt : weights)
+	{
+		wgt = expf(-(x * x) / (2 * s * s));
+		total += wgt;
+		x += 1.0f;
+	}
+	total = total * 2.0f - 1.0f;
+	for (auto& wgt : weights)
+	{
+		wgt /= total;
+	}
+
+	return weights;
+}
+
+void PeraPolygon::CreateBokehParamResource()
+{
+	auto weights = GetGaussianWeights(8, 5.0f);
+	auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	auto rd = CD3DX12_RESOURCE_DESC::Buffer(AligmentedValue(sizeof(weights[0]) * weights.size(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT));
+
+	HRESULT hr = DX12Renderer::GetDevice()->CreateCommittedResource(
+		&hp,
+		D3D12_HEAP_FLAG_NONE,
+		&rd,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_BokehParamResource.ReleaseAndGetAddressOf())
+	);
+
+	float* mappedWeight = nullptr;
+	hr = m_BokehParamResource.Get()->Map(0, nullptr, (void**)&mappedWeight);
+	copy(weights.begin(), weights.end(), mappedWeight);
+	m_BokehParamResource.Get()->Unmap(0, nullptr);
 
 }

@@ -130,14 +130,22 @@ public:
     void CreatePeraVertex();
     void CreatePeraPipeline();
 
+    std::vector<float> GetGaussianWeights(size_t count, float s);
+    void CreateBokehParamResource();
+
+
 private:
     ComPtr<ID3D12Resource> m_PeraResource;
+    ComPtr<ID3D12Resource> m_PeraResource2;
     ComPtr<ID3D12DescriptorHeap> m_PeraRTVDescHeap; // レンダーターゲット用
     ComPtr<ID3D12DescriptorHeap> m_PeraSRVDescHeap; // テクスチャ用
     ComPtr<ID3D12Resource> m_PeraVB;
     D3D12_VERTEX_BUFFER_VIEW m_PeraVBView;
     ComPtr<ID3D12RootSignature> m_PeraRootSignature;
     ComPtr<ID3D12PipelineState> m_PeraPipelineState;
+    ComPtr<ID3D12PipelineState> m_PeraPipelineState2;
+    
+    ComPtr<ID3D12Resource> m_BokehParamResource;  // ガウス分布ウェイト値
 
 };
 

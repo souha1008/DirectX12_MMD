@@ -150,6 +150,7 @@
     <ClInclude Include="DirectX12_01.h" />
     <ClInclude Include="DX12Renderer.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="Helper.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="MainManager.h" />
     <ClInclude Include="3DObject.h" />
@@ -157,18 +158,17 @@
     <ClInclude Include="Polygon2D.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="Title.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Audio.cpp" />
     <ClCompile Include="DX12Renderer.cpp" />
+    <ClCompile Include="Helper.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainManager.cpp" />
     <ClCompile Include="3DObject.cpp" />
     <ClCompile Include="Obj_HatsuneMiku.cpp" />
     <ClCompile Include="Polygon2D.cpp" />
-    <ClCompile Include="Title.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DirectX12_01.rc" />

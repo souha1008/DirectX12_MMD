@@ -22,11 +22,11 @@
     <ClCompile Include="Obj_HatsuneMiku.cpp">
       <Filter>ソースファイル\オブジェクト\3Dオブジェクト</Filter>
     </ClCompile>
-    <ClCompile Include="Title.cpp">
-      <Filter>ソースファイル\メインモジュール</Filter>
-    </ClCompile>
     <ClCompile Include="input.cpp">
       <Filter>ソースファイル\メインモジュール</Filter>
+    </ClCompile>
+    <ClCompile Include="Helper.cpp">
+      <Filter>ソースファイル\フレームワーク</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -60,11 +60,11 @@
     <ClInclude Include="Obj_HatsuneMiku.h">
       <Filter>ヘッダーファイル\オブジェクト\3Dオブジェクト</Filter>
     </ClInclude>
-    <ClInclude Include="Title.h">
-      <Filter>ヘッダーファイル\モジュール</Filter>
-    </ClInclude>
     <ClInclude Include="input.h">
       <Filter>ヘッダーファイル\モジュール</Filter>
+    </ClInclude>
+    <ClInclude Include="Helper.h">
+      <Filter>ヘッダーファイル\フレームワーク</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -123,6 +123,9 @@
     </Filter>
     <Filter Include="ソースファイル\オブジェクト\3Dオブジェクト">
       <UniqueIdentifier>{23667ee3-0112-451b-a9f7-a52da57de485}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\フレームワーク">
+      <UniqueIdentifier>{3fbc0dfe-47e6-4340-8726-bcb309f23ba8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

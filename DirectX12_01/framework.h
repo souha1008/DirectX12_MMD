@@ -18,7 +18,7 @@
 #include <wrl.h>
 
 using namespace Microsoft::WRL;
-
+using namespace std;
 
 // DirectX12
 #include <d3d12.h>
