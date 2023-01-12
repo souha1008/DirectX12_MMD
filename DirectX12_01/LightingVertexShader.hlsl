@@ -4,6 +4,7 @@ cbuffer SceneView : register(b0)   // 定数バッファー
 {
 	matrix view;    // ビュー
 	matrix proj;    // プロジェクション
+	matrix shadow;	// 影行列
 	float3 eye;     // 視線
 };
 
@@ -34,6 +35,7 @@ OUTPUT LightingVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEX
 	pos = mul(bm, pos);
 
 	pos = mul(world, pos);
+	pos = mul(shadow, pos);
 	output.svpos = mul(mul(proj, view), pos);
 	output.pos = mul(view, pos);
 

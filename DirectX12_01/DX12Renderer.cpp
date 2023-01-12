@@ -2,7 +2,7 @@
 #include "DX12Renderer.h"
 #include "Helper.h"
 
-#define PS_ENTRYPOINT	"GaussianBlur"
+#define PS_ENTRYPOINT	"ps"
 
 // staticメンバ変数
 ComPtr<ID3D12Device> DX12Renderer::m_Device = nullptr;
@@ -25,6 +25,7 @@ ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_sceneDescHeap = nullptr;
 DX12Renderer::SCENEMATRIX* DX12Renderer::m_MappedSceneMatrix = nullptr;
 ComPtr<ID3D12Resource> DX12Renderer::m_LightCBuffer = nullptr;
 ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_LightDescHeap = nullptr;
+XMFLOAT3 DX12Renderer::m_ParallelLightVec = {1, -1, 1};
 DX12Renderer::LIGHT* DX12Renderer::m_mapLight = nullptr;
 UINT64 DX12Renderer::m_FenceVal = 0;
 D3D12_RESOURCE_BARRIER DX12Renderer::m_Barrier = {};
@@ -680,6 +681,8 @@ HRESULT DX12Renderer::CreateSceneConstBuffer()
 		1000.0f//遠い方
 	));
 	m_MappedSceneMatrix->eye = eye;
+	XMFLOAT4 planeNormalVec(0, 1, 0, 0);
+	m_MappedSceneMatrix->shadow = XMMatrixShadow(XMLoadFloat4(&planeNormalVec), -XMLoadFloat3(&m_ParallelLightVec));
 
 	// ディスクリプタヒープ作成
 	D3D12_DESCRIPTOR_HEAP_DESC dhd = {};

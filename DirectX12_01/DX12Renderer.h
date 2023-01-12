@@ -84,6 +84,7 @@ private:
     {
         XMFLOAT4X4 view;
         XMFLOAT4X4 proj;
+        XMMATRIX shadow;
         XMFLOAT3 eye;   // 視線座標
     }SCENEMATRIX;
 
@@ -105,6 +106,8 @@ private:
 
     static ComPtr<ID3D12Resource> m_LightCBuffer;
     static ComPtr<ID3D12DescriptorHeap> m_LightDescHeap;
+    // 並行ライトの向き
+    static XMFLOAT3 m_ParallelLightVec;
     static LIGHT* m_mapLight;
 
     static std::vector<ID3D12Resource*> m_BackBuffers;
@@ -117,6 +120,7 @@ private:
     static UINT64 m_FenceVal;
 
     static D3D12_RESOURCE_BARRIER m_Barrier;
+    
 
 };
 
