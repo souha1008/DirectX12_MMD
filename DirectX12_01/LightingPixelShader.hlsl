@@ -17,6 +17,11 @@ cbuffer Material : register(b2)
 
 float4 LightingPS(OUTPUT input) : SV_TARGET
 {
+	if (input.instNo == 1)
+	{
+		return float4(0, 0, 0, 1);
+	}
+
 	// 光の向かうベクトル
 	float3 light = normalize(Light.Direction.xyz);
 	// ライトのカラー

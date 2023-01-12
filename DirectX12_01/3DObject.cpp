@@ -1501,7 +1501,7 @@ void Object3D::Draw()
 	for (auto& m : material)
 	{
 		DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(2, material_handle);
-		DX12Renderer::GetGraphicsCommandList()->DrawIndexedInstanced(m.indicesNum, 1, idxOffset, 0, 0);
+		DX12Renderer::GetGraphicsCommandList()->DrawIndexedInstanced(m.indicesNum, 2, idxOffset, 0, 0);
 
 		// ヒープポインタとインデックスを次に進める
 		material_handle.ptr += cbvsize;

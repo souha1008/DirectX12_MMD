@@ -21,7 +21,7 @@ cbuffer Material : register(b2)
 	float3 ambient;
 };
 
-OUTPUT LightingVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD, min16uint2 boneno : BONE_NO, min16uint weight : WEIGHT)
+OUTPUT LightingVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEXCOORD, min16uint2 boneno : BONE_NO, min16uint weight : WEIGHT, uint instNo : SV_InstanceID)
 {
 	OUTPUT output;
 
@@ -35,7 +35,10 @@ OUTPUT LightingVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEX
 	pos = mul(bm, pos);
 
 	pos = mul(world, pos);
-	pos = mul(shadow, pos);
+	if (instNo == 1)
+	{
+		pos = mul(shadow, pos);
+	}
 	output.svpos = mul(mul(proj, view), pos);
 	output.pos = mul(view, pos);
 
@@ -46,6 +49,8 @@ OUTPUT LightingVS(float4 pos : POSITION, float4 normal : NORMAL, float2 uv : TEX
 	output.uv = uv;
 
 	output.ray = normalize(output.pos.xyz - mul(view, eye));	// 視線ベクトル
+
+	output.instNo = instNo;
 
 	// 明るさの計算
 	float light = -dot(Light.Direction.xyz, output.normal.xyz);
