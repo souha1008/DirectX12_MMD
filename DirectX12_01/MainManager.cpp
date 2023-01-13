@@ -14,8 +14,6 @@
 #include "Polygon2D.h"
 #include "Obj_HatsuneMiku.h"
 
-NowScene MainManager::m_nowscene = NowScene::Title;
-
 
 // インスタンス
 Obj_HatsuneMiku* g_HatsuneMiku;
