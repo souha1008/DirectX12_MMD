@@ -802,6 +802,7 @@ void PeraPolygon::CreatePeraResorce()
 		m_PeraRTVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart()
 	);
 
+
 	// SRV用ヒープを作る
 	hd.NumDescriptors = 2;
 	hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -827,12 +828,13 @@ void PeraPolygon::CreatePeraResorce()
 		handle
 	);
 
+	// ぼけ定数バッファービュー設定
 	handle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
 	cbvd.BufferLocation = m_BokehParamResource.Get()->GetGPUVirtualAddress();
 	cbvd.SizeInBytes = m_BokehParamResource.Get()->GetDesc().Width;
-	
 	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, handle);
+	
 
 }
 
