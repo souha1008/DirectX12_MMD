@@ -39,6 +39,7 @@ void MainManager::Init()
     g_Pera->CreatePeraPipeline();
 
     g_bgm->Load("Assets/Audio/アンノウン・マザーグース.wav");
+    g_bgm->Play();
 }
 
 void MainManager::Uninit()
