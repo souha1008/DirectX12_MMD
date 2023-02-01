@@ -3,6 +3,7 @@
 
 // レンダーモジュール
 #include "DX12Renderer.h"
+#include "FinalResource.h"
 
 // サウンドモジュール
 #include "Audio.h"
@@ -14,11 +15,11 @@
 #include "Polygon2D.h"
 #include "Obj_HatsuneMiku.h"
 
-
 // インスタンス
 Obj_HatsuneMiku* g_HatsuneMiku;
 Audio* g_bgm;
 PeraPolygon* g_Pera;
+FinalResource* g_FinalResource;
 
 void MainManager::Init()
 {
@@ -37,6 +38,9 @@ void MainManager::Init()
     g_Pera->CreatePeraResorce();
     g_Pera->CreatePeraVertex();
     g_Pera->CreatePeraPipeline();
+
+    g_FinalResource = new FinalResource();
+    g_FinalResource->Init();
 
     g_bgm->Load("Assets/Audio/アンノウン・マザーグース.wav");
 
@@ -85,7 +89,7 @@ void MainManager::Draw()
 
     DX12Renderer::Draw3D();
     // ペラポリゴン描画準備
-    g_Pera->PrePeraDraw();
+    g_Pera->PrePeraDraw1();
 
     DX12Renderer::LIGHT light;
     light.Enable = true;
@@ -107,7 +111,17 @@ void MainManager::Draw()
 
     // 3D描画
     g_HatsuneMiku->Draw();
-    g_Pera->PostPeraDraw();
+    g_Pera->PostPeraDraw1();
+
+    // フィルタ二枚目
+    g_Pera->PrePeraDraw2();
+    g_Pera->PeraDraw1();
+    g_Pera->PostPeraDraw2();
+
+    // 最終的に画面に映すもの
+    g_FinalResource->PreFinalDraw();
+    g_Pera->PeraDraw2();
+    g_FinalResource->PostFinalDraw();
 
     // シャドウバッファの作成
     //DX12Renderer::BeginDepthShadow();
@@ -118,7 +132,7 @@ void MainManager::Draw()
     // ここにオブジェクトの描画
     DX12Renderer::Begin();
 
-    g_Pera->PeraDraw1();
+    g_FinalResource->FinalDraw();
 
     DX12Renderer::End();
 

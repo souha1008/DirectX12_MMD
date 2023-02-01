@@ -786,8 +786,17 @@ void PeraPolygon::CreatePeraResorce()
 		IID_PPV_ARGS(m_PeraResource.ReleaseAndGetAddressOf())
 	);
 
+	hr = DX12Renderer::GetDevice()->CreateCommittedResource(
+		&hp,
+		D3D12_HEAP_FLAG_NONE,
+		&rd,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		&clearValue,
+		IID_PPV_ARGS(m_PeraResource2.ReleaseAndGetAddressOf())
+	);
+
 	// RTV用ヒープを作る
-	hd.NumDescriptors = 1;
+	hd.NumDescriptors = 2;
 	hr = DX12Renderer::GetDevice()->CreateDescriptorHeap(
 		&hd,
 		IID_PPV_ARGS(m_PeraRTVDescHeap.ReleaseAndGetAddressOf())
@@ -796,16 +805,25 @@ void PeraPolygon::CreatePeraResorce()
 	rtvd.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	rtvd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
+	auto handle = m_PeraRTVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+
 	// RTVを作る
 	DX12Renderer::GetDevice()->CreateRenderTargetView(
 		m_PeraResource.Get(),
 		&rtvd,
-		m_PeraRTVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart()
+		handle
 	);
 
+	// RTVを作る(２枚目)
+	handle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	DX12Renderer::GetDevice()->CreateRenderTargetView(
+		m_PeraResource2.Get(),
+		&rtvd,
+		handle
+	);
 
 	// SRV用ヒープを作る
-	hd.NumDescriptors = 2;
+	hd.NumDescriptors = 3;
 	hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -814,32 +832,40 @@ void PeraPolygon::CreatePeraResorce()
 		IID_PPV_ARGS(m_PeraSRVDescHeap.ReleaseAndGetAddressOf())
 	);
 
-	auto handle = m_PeraSRVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	handle = m_PeraSRVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	
+	// ぼけ定数バッファービュー設定
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
+	cbvd.BufferLocation = m_BokehParamResource.Get()->GetGPUVirtualAddress();
+	cbvd.SizeInBytes = m_BokehParamResource.Get()->GetDesc().Width;
+	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, handle);
 
+	handle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvd = {};
 	srvd.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvd.Format = rtvd.Format;
 	srvd.Texture2D.MipLevels = 1;
 	srvd.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	// SRVを作る
+	// SRVを作る1枚目
 	DX12Renderer::GetDevice()->CreateShaderResourceView(
 		m_PeraResource.Get(),
 		&srvd,
 		handle
 	);
 
-	// ぼけ定数バッファービュー設定
+	// SRVを作る2枚目
 	handle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvd = {};
-	cbvd.BufferLocation = m_BokehParamResource.Get()->GetGPUVirtualAddress();
-	cbvd.SizeInBytes = m_BokehParamResource.Get()->GetDesc().Width;
-	DX12Renderer::GetDevice()->CreateConstantBufferView(&cbvd, handle);
+	DX12Renderer::GetDevice()->CreateShaderResourceView(
+		m_PeraResource2.Get(),
+		&srvd,
+		handle
+	);
 	
 
 }
 
-void PeraPolygon::PrePeraDraw()
+void PeraPolygon::PrePeraDraw1()
 {
 	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 		m_PeraResource.Get(),
@@ -883,10 +909,70 @@ void PeraPolygon::PeraDraw1()
 	DX12Renderer::GetGraphicsCommandList()->DrawInstanced(4, 1, 0, 0);
 }
 
-void PeraPolygon::PostPeraDraw()
+void PeraPolygon::PostPeraDraw1()
 {
 	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 		m_PeraResource.Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+	);
+
+	DX12Renderer::GetGraphicsCommandList()->ResourceBarrier(
+		1,
+		&barrier
+	);
+}
+
+void PeraPolygon::PrePeraDraw2()
+{
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_PeraResource2.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	);
+
+	DX12Renderer::GetGraphicsCommandList()->ResourceBarrier(
+		1,
+		&barrier
+	);
+
+	// 2パス目にする
+	auto rtvHeapHandle = m_PeraRTVDescHeap.Get()->GetCPUDescriptorHandleForHeapStart();
+	rtvHeapHandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	DX12Renderer::GetGraphicsCommandList()->OMSetRenderTargets(
+		1,
+		&rtvHeapHandle,
+		false,
+		nullptr
+	);
+	float clsClr[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+	DX12Renderer::GetGraphicsCommandList()->ClearRenderTargetView(rtvHeapHandle, clsClr, 0, nullptr);
+}
+
+void PeraPolygon::PeraDraw2()
+{
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootSignature(m_PeraRootSignature.Get());
+	DX12Renderer::GetGraphicsCommandList()->SetPipelineState(m_NowUsePipelineState2.Get());
+	DX12Renderer::GetGraphicsCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	DX12Renderer::GetGraphicsCommandList()->IASetVertexBuffers(0, 1, &m_PeraVBView);
+
+	DX12Renderer::GetGraphicsCommandList()->SetDescriptorHeaps(1, m_PeraSRVDescHeap.GetAddressOf());
+	// 定数バッファーのディスクリプターテーブルのセット
+	auto srvhandle = m_PeraSRVDescHeap.Get()->GetGPUDescriptorHandleForHeapStart();
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(0, srvhandle);
+	// ３番目なので２回インクリメント
+	srvhandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	srvhandle.ptr += DX12Renderer::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootDescriptorTable(1, srvhandle);
+
+	DX12Renderer::GetGraphicsCommandList()->DrawInstanced(4, 1, 0, 0);
+}
+
+void PeraPolygon::PostPeraDraw2()
+{
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_PeraResource2.Get(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 	);
@@ -938,15 +1024,18 @@ void PeraPolygon::CreatePeraPipeline()
 {
 	HRESULT hr;
 
-	D3D12_DESCRIPTOR_RANGE dr[2] = {};
-	dr[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	D3D12_DESCRIPTOR_RANGE dr[3] = {};
+	dr[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	dr[0].BaseShaderRegister = 0;
 	dr[0].NumDescriptors = 1;
-	dr[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	dr[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;	// 一枚目ペラポリゴン
 	dr[1].BaseShaderRegister = 0;
 	dr[1].NumDescriptors = 1;
+	dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;	// 二枚目ペラポリゴン
+	dr[2].BaseShaderRegister = 1;
+	dr[2].NumDescriptors = 1;
 
-	D3D12_ROOT_PARAMETER rp[2] = {};
+	D3D12_ROOT_PARAMETER rp[3] = {};
 	rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rp[0].DescriptorTable.pDescriptorRanges = &dr[0];
@@ -955,6 +1044,10 @@ void PeraPolygon::CreatePeraPipeline()
 	rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rp[1].DescriptorTable.pDescriptorRanges = &dr[1];
 	rp[1].DescriptorTable.NumDescriptorRanges = 1;
+	rp[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rp[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rp[2].DescriptorTable.pDescriptorRanges = &dr[2];
+	rp[2].DescriptorTable.NumDescriptorRanges = 1;
 
 	D3D12_STATIC_SAMPLER_DESC ssd = CD3DX12_STATIC_SAMPLER_DESC(0);
 	ssd.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
@@ -1007,7 +1100,7 @@ void PeraPolygon::CreatePeraPipeline()
 	};
 
 	D3D12_ROOT_SIGNATURE_DESC rsd = {};
-	rsd.NumParameters = 2;
+	rsd.NumParameters = 3;
 	rsd.pParameters = rp;
 	rsd.NumStaticSamplers = 1;
 	rsd.pStaticSamplers = &ssd;
@@ -1045,7 +1138,31 @@ void PeraPolygon::CreatePeraPipeline()
 	gpsd.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	gpsd.pRootSignature = m_PeraRootSignature.Get();
 	// 通常描画パイプライン
-	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_PeraPipelineState.ReleaseAndGetAddressOf()));
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_NormalPipelineState.ReleaseAndGetAddressOf()));
+
+	// 縦方向ブラーパイプライン
+	hr = D3DCompileFromFile(
+		L"PeraPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"VerticalBokehPS", "ps_5_0", 0, 0,
+		ps.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_GaussianVPipeline.ReleaseAndGetAddressOf()));
+	
+	// 横方向ブラーパイプライン
+	hr = D3DCompileFromFile(
+		L"PeraPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"HorizontalBokehPS", "ps_5_0", 0, 0,
+		ps.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_GaussianHPipeline.ReleaseAndGetAddressOf()));
 
 	// ブラーパイプライン
 	hr = D3DCompileFromFile(
@@ -1082,12 +1199,22 @@ void PeraPolygon::CreatePeraPipeline()
 	);
 	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
 	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_OutlinePipeline.ReleaseAndGetAddressOf()));
-	m_NowUsePipelineState = m_OutlinePipeline;
-}
 
-void PeraPolygon::CreatePostEffectPipeline()
-{
-	
+	// アウトラインパイプライン
+	hr = D3DCompileFromFile(
+		L"PeraPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"OutlinePS", "ps_5_0", 0, 0,
+		ps.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_OutlinePipeline.ReleaseAndGetAddressOf()));
+
+
+	m_NowUsePipelineState = m_NormalPipelineState;
+	m_NowUsePipelineState2 = m_NormalPipelineState;
 }
 
 std::vector<float> PeraPolygon::GetGaussianWeights(size_t count, float s)
@@ -1142,24 +1269,35 @@ void PeraPolygon::ChangePipeline()
 	// 通常
 	if (Input::GetKeyTrigger('1'))
 	{
-		m_NowUsePipelineState = m_PeraPipelineState;
+		m_NowUsePipelineState = m_NormalPipelineState;
+		m_NowUsePipelineState2 = m_NormalPipelineState;
 	}
 
 	// ブラー
 	if (Input::GetKeyTrigger('2'))
 	{
 		m_NowUsePipelineState = m_BlurPipeline;
+		m_NowUsePipelineState2 = m_NormalPipelineState;
 	}
 
 	// エンボス
 	if (Input::GetKeyTrigger('3'))
 	{
 		m_NowUsePipelineState = m_EmbossPipeline;
+		m_NowUsePipelineState2 = m_NormalPipelineState;
 	}
 
 	// アウトライン
 	if (Input::GetKeyTrigger('4'))
 	{
 		m_NowUsePipelineState = m_OutlinePipeline;
+		m_NowUsePipelineState2 = m_NormalPipelineState;
+	}
+
+	// ガウスぼかし
+	if (Input::GetKeyTrigger('5'))
+	{
+		m_NowUsePipelineState = m_GaussianHPipeline;
+		m_NowUsePipelineState2 = m_GaussianVPipeline;
 	}
 }

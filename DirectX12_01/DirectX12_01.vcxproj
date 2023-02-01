@@ -149,6 +149,7 @@
     <ClInclude Include="Audio.h" />
     <ClInclude Include="DirectX12_01.h" />
     <ClInclude Include="DX12Renderer.h" />
+    <ClInclude Include="FinalResource.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Helper.h" />
     <ClInclude Include="input.h" />
@@ -162,6 +163,7 @@
   <ItemGroup>
     <ClCompile Include="Audio.cpp" />
     <ClCompile Include="DX12Renderer.cpp" />
+    <ClCompile Include="FinalResource.cpp" />
     <ClCompile Include="Helper.cpp" />
     <ClCompile Include="input.cpp" />
     <ClCompile Include="main.cpp" />

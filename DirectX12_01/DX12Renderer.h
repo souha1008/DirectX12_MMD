@@ -128,13 +128,14 @@ class PeraPolygon
 {
 public:
     void CreatePeraResorce();
-    void PrePeraDraw();
+    void PrePeraDraw1();
     void PeraDraw1();
-    void PostPeraDraw();
+    void PostPeraDraw1();
+    void PrePeraDraw2();
+    void PeraDraw2();
+    void PostPeraDraw2();
     void CreatePeraVertex();
     void CreatePeraPipeline();
-
-    void CreatePostEffectPipeline();
 
     std::vector<float> GetGaussianWeights(size_t count, float s);
     void CreateBokehParamResource();
@@ -153,17 +154,22 @@ private:
     ComPtr<ID3D12RootSignature> m_PeraRootSignature;
 
     // 通常描画パイプライン
-    ComPtr<ID3D12PipelineState> m_PeraPipelineState;
-
+    ComPtr<ID3D12PipelineState> m_NormalPipelineState;
     // ポストエフェクトごとのパイプライン
     ComPtr<ID3D12PipelineState> m_BlurPipeline;
     ComPtr<ID3D12PipelineState> m_EmbossPipeline;
     ComPtr<ID3D12PipelineState> m_OutlinePipeline;
+    ComPtr<ID3D12PipelineState> m_GaussianHPipeline;
+    ComPtr<ID3D12PipelineState> m_GaussianVPipeline;
 
     // 現在使用中のパイプライン
+    // このパイプラインはかけるエフェクトの量だけ作成する
     ComPtr<ID3D12PipelineState> m_NowUsePipelineState;
+    ComPtr<ID3D12PipelineState> m_NowUsePipelineState2;
     
     ComPtr<ID3D12Resource> m_BokehParamResource;  // ガウス分布ウェイト値
 
 };
+
+
 
