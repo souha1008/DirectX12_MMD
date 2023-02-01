@@ -1,6 +1,7 @@
 #include "framework.h"
 #include "DX12Renderer.h"
 #include "Helper.h"
+#include "input.h"
 
 #define PS_ENTRYPOINT	"ps"
 
@@ -869,7 +870,7 @@ void PeraPolygon::PrePeraDraw()
 void PeraPolygon::PeraDraw1()
 {
 	DX12Renderer::GetGraphicsCommandList()->SetGraphicsRootSignature(m_PeraRootSignature.Get());
-	DX12Renderer::GetGraphicsCommandList()->SetPipelineState(m_PeraPipelineState.Get());
+	DX12Renderer::GetGraphicsCommandList()->SetPipelineState(m_NowUsePipelineState.Get());
 	DX12Renderer::GetGraphicsCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	DX12Renderer::GetGraphicsCommandList()->IASetVertexBuffers(0, 1, &m_PeraVBView);
 
@@ -1043,8 +1044,50 @@ void PeraPolygon::CreatePeraPipeline()
 	gpsd.SampleDesc.Quality = 0;
 	gpsd.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	gpsd.pRootSignature = m_PeraRootSignature.Get();
+	// 通常描画パイプライン
 	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_PeraPipelineState.ReleaseAndGetAddressOf()));
 
+	// ブラーパイプライン
+	hr = D3DCompileFromFile(
+		L"PeraPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"BlurPS", "ps_5_0", 0, 0,
+		ps.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_BlurPipeline.ReleaseAndGetAddressOf()));
+
+	// エンボスパイプライン
+	hr = D3DCompileFromFile(
+		L"PeraPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"EmbossPS", "ps_5_0", 0, 0,
+		ps.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_EmbossPipeline.ReleaseAndGetAddressOf()));
+
+	// アウトラインパイプライン
+	hr = D3DCompileFromFile(
+		L"PeraPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"OutlinePS", "ps_5_0", 0, 0,
+		ps.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_OutlinePipeline.ReleaseAndGetAddressOf()));
+	m_NowUsePipelineState = m_OutlinePipeline;
+}
+
+void PeraPolygon::CreatePostEffectPipeline()
+{
+	
 }
 
 std::vector<float> PeraPolygon::GetGaussianWeights(size_t count, float s)
@@ -1087,4 +1130,36 @@ void PeraPolygon::CreateBokehParamResource()
 	copy(weights.begin(), weights.end(), mappedWeight);
 	m_BokehParamResource.Get()->Unmap(0, nullptr);
 
+}
+
+void PeraPolygon::Update()
+{
+	ChangePipeline();
+}
+
+void PeraPolygon::ChangePipeline()
+{
+	// 通常
+	if (Input::GetKeyTrigger('1'))
+	{
+		m_NowUsePipelineState = m_PeraPipelineState;
+	}
+
+	// ブラー
+	if (Input::GetKeyTrigger('2'))
+	{
+		m_NowUsePipelineState = m_BlurPipeline;
+	}
+
+	// エンボス
+	if (Input::GetKeyTrigger('3'))
+	{
+		m_NowUsePipelineState = m_EmbossPipeline;
+	}
+
+	// アウトライン
+	if (Input::GetKeyTrigger('4'))
+	{
+		m_NowUsePipelineState = m_OutlinePipeline;
+	}
 }

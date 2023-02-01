@@ -134,8 +134,13 @@ public:
     void CreatePeraVertex();
     void CreatePeraPipeline();
 
+    void CreatePostEffectPipeline();
+
     std::vector<float> GetGaussianWeights(size_t count, float s);
     void CreateBokehParamResource();
+
+    void Update();
+    void ChangePipeline();  // Update内で使う
 
 
 private:
@@ -146,8 +151,17 @@ private:
     ComPtr<ID3D12Resource> m_PeraVB;
     D3D12_VERTEX_BUFFER_VIEW m_PeraVBView;
     ComPtr<ID3D12RootSignature> m_PeraRootSignature;
+
+    // 通常描画パイプライン
     ComPtr<ID3D12PipelineState> m_PeraPipelineState;
-    ComPtr<ID3D12PipelineState> m_PeraPipelineState2;
+
+    // ポストエフェクトごとのパイプライン
+    ComPtr<ID3D12PipelineState> m_BlurPipeline;
+    ComPtr<ID3D12PipelineState> m_EmbossPipeline;
+    ComPtr<ID3D12PipelineState> m_OutlinePipeline;
+
+    // 現在使用中のパイプライン
+    ComPtr<ID3D12PipelineState> m_NowUsePipelineState;
     
     ComPtr<ID3D12Resource> m_BokehParamResource;  // ガウス分布ウェイト値
 

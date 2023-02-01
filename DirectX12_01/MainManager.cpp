@@ -39,6 +39,9 @@ void MainManager::Init()
     g_Pera->CreatePeraPipeline();
 
     g_bgm->Load("Assets/Audio/アンノウン・マザーグース.wav");
+
+    // １フレームだけ進ませる
+    g_HatsuneMiku->Update();
 }
 
 void MainManager::Uninit()
@@ -56,7 +59,25 @@ void MainManager::Uninit()
 
 void MainManager::Update()
 {
+#ifdef _DEBUG
+    static bool isplay;
+    
+    if (Input::GetKeyTrigger(VK_SPACE))
+    {
+        isplay = !isplay;
+    }
+    
+    if (isplay)
+    {
+        g_HatsuneMiku->Update();
+
+    }
+#else
     g_HatsuneMiku->Update();
+#endif // _DEBUG
+
+
+    g_Pera->Update();
 }
 
 void MainManager::Draw()
@@ -95,11 +116,8 @@ void MainManager::Draw()
     //DX12Renderer::SetProj(&light.ProjMatrix);
 
     // ここにオブジェクトの描画
-
-
     DX12Renderer::Begin();
 
-    //g_HatsuneMiku->Draw();
     g_Pera->PeraDraw1();
 
     DX12Renderer::End();

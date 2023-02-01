@@ -25,6 +25,7 @@ public:
 
 	void Load(const char* FileName);
 	void Play(bool Loop = false);
+	void Pause() { m_SourceVoice->Stop(); };
 
 };
 

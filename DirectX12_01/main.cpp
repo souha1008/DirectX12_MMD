@@ -7,6 +7,7 @@
 #include "framework.h"
 #include "DirectX12_01.h"
 #include "MainManager.h"
+#include "input.h"
 
 /// キャプション定義
 const char* g_ClassName = "AppClass";
@@ -65,6 +66,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 	/// 使用オブジェクトの初期化
 	MainManager::Init();
 
+	Input::Init();
 
 
 	ShowWindow(g_Window, nCmdShow);
@@ -105,6 +107,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 				dwExecLastTime = dwCurrentTime;
 
 				// 更新処理
+				Input::Update();
 				MainManager::Update();
 				// 描画処理
 				MainManager::Draw();
@@ -118,6 +121,8 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
 	// 終了処理
 	MainManager::Uninit();
+
+	Input::Uninit();
 
 	return (int)msg.wParam;
 }
