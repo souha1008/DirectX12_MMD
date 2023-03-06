@@ -108,11 +108,11 @@ void Audio::Uninit()
 
 
 
-void Audio::Play(bool Loop)
+void Audio::Play(bool Loop, float volume)
 {
 	m_SourceVoice->Stop();
 	m_SourceVoice->FlushSourceBuffers();
-
+	m_SourceVoice->SetVolume(volume);
 
 	// バッファ設定
 	XAUDIO2_BUFFER bufinfo;
@@ -122,6 +122,8 @@ void Audio::Play(bool Loop)
 	bufinfo.pAudioData = m_SoundData;
 	bufinfo.PlayBegin = 0;
 	bufinfo.PlayLength = m_PlayLength;
+	
+	
 
 	// ループ設定
 	if (Loop)

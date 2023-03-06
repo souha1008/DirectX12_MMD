@@ -176,3 +176,15 @@ float4 HorizontalBokehPS(Output input) : SV_TARGET
 	}
 	return float4(ret.rgb,col.a);
 }
+
+float4 MosaicPS(Output input) : SV_TARGET
+{
+	float size = 100.0f;
+	float2 _uv = floor(input.uv * size + 0.5f) / size;
+
+	float4 ret = tex.Sample(smp, _uv);
+	ret.a = 1.0f;
+
+	return ret;
+
+}

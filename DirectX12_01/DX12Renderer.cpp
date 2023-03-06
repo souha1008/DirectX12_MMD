@@ -9,8 +9,9 @@
 ComPtr<ID3D12Device> DX12Renderer::m_Device = nullptr;
 ComPtr<IDXGIFactory6> DX12Renderer::m_DXGIFactry = nullptr;
 ComPtr<IDXGISwapChain4> DX12Renderer::m_SwapChain4 = nullptr;
-ComPtr<ID3D12Resource> DX12Renderer::m_DepthBuffer = nullptr;
+ComPtr<ID3D12Resource> DX12Renderer::m_BackBufferDepthResource = nullptr;
 ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_DSVDescHeap = nullptr;
+ComPtr<ID3D12DescriptorHeap> DX12Renderer::m_DepthSRVDescHeap = nullptr;
 ComPtr<ID3D12CommandAllocator> DX12Renderer::m_CmdAllocator = nullptr;
 ComPtr<ID3D12GraphicsCommandList> DX12Renderer::m_GCmdList = nullptr;
 ComPtr<ID3D12CommandQueue> DX12Renderer::m_CmdQueue = nullptr;
@@ -129,11 +130,6 @@ void DX12Renderer::Begin()
 	FLOAT clear_color[4] = { 0.4f, 0.4f, 0.4f, 1.0f };
 	m_GCmdList->ClearRenderTargetView(rtvH, clear_color, 0, nullptr);
 	m_GCmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-
-
-
-
 
 }
 
@@ -369,7 +365,7 @@ HRESULT DX12Renderer::CreateDepthBuffer()
 		&rd,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&depth_cv,
-		IID_PPV_ARGS(&m_DepthBuffer)
+		IID_PPV_ARGS(&m_BackBufferDepthResource)
 	);
 
 	return hr;
@@ -392,10 +388,11 @@ HRESULT DX12Renderer::CreateDepthBufferView()
 	dsvd.Flags = D3D12_DSV_FLAG_NONE;
 
 	m_Device->CreateDepthStencilView(
-		m_DepthBuffer.Get(),
+		m_BackBufferDepthResource.Get(),
 		&dsvd,
 		m_DSVDescHeap->GetCPUDescriptorHandleForHeapStart()
 	);
+
 
 	return hr;
 }
@@ -890,7 +887,7 @@ void PeraPolygon::PrePeraDraw1()
 	);
 	float clsClr[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
 	DX12Renderer::GetGraphicsCommandList()->ClearRenderTargetView(rtvHeapHandle, clsClr, 0, nullptr);
-	DX12Renderer::GetGraphicsCommandList()->ClearDepthStencilView(dsvHeapHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	//DX12Renderer::GetGraphicsCommandList()->ClearDepthStencilView(dsvHeapHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 
 void PeraPolygon::PeraDraw1()
@@ -1026,20 +1023,20 @@ void PeraPolygon::CreatePeraPipeline()
 
 	D3D12_DESCRIPTOR_RANGE dr[3] = {};
 	dr[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	dr[0].BaseShaderRegister = 0;
-	dr[0].NumDescriptors = 1;
+	dr[0].BaseShaderRegister = 0;	// シェーダーのcbuffer０番目を指定
+	dr[0].NumDescriptors = 1;		// ディスクリプタヒープ数
 	dr[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;	// 一枚目ペラポリゴン
-	dr[1].BaseShaderRegister = 0;
-	dr[1].NumDescriptors = 1;
+	dr[1].BaseShaderRegister = 0;	// シェーダーのTexture2Dの０番目を指定
+	dr[1].NumDescriptors = 1;		// ディスクリプタヒープ数
 	dr[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;	// 二枚目ペラポリゴン
-	dr[2].BaseShaderRegister = 1;
-	dr[2].NumDescriptors = 1;
+	dr[2].BaseShaderRegister = 1;	// シェーダーのTexture2Dの１番目を指定
+	dr[2].NumDescriptors = 1;		// ディスクリプタヒープ数
 
 	D3D12_ROOT_PARAMETER rp[3] = {};
 	rp[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rp[0].DescriptorTable.pDescriptorRanges = &dr[0];
-	rp[0].DescriptorTable.NumDescriptorRanges = 1;
+	rp[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;	// どんなシェーダーファイルからも見える
+	rp[0].DescriptorTable.pDescriptorRanges = &dr[0];		// 使うディスクリプタレンジの先頭アドレス
+	rp[0].DescriptorTable.NumDescriptorRanges = 1;			// 先頭アドレスから何個使うのか
 	rp[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rp[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rp[1].DescriptorTable.pDescriptorRanges = &dr[1];
@@ -1137,10 +1134,15 @@ void PeraPolygon::CreatePeraPipeline()
 	gpsd.SampleDesc.Quality = 0;
 	gpsd.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
 	gpsd.pRootSignature = m_PeraRootSignature.Get();
+
+
+
 	// 通常描画パイプライン
-	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_NormalPipelineState.ReleaseAndGetAddressOf()));
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, 
+		IID_PPV_ARGS(m_NormalPipelineState.ReleaseAndGetAddressOf()));
 
 	// 縦方向ブラーパイプライン
+	// ピクセルシェーダー読み込み
 	hr = D3DCompileFromFile(
 		L"PeraPixelShader.hlsl",
 		nullptr,
@@ -1149,8 +1151,17 @@ void PeraPolygon::CreatePeraPipeline()
 		ps.ReleaseAndGetAddressOf(),
 		errBlob.ReleaseAndGetAddressOf()
 	);
+
+	// 読み込んだシェーダーを
+	// パイプラインステートオブジェクトに登録
 	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
-	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_GaussianVPipeline.ReleaseAndGetAddressOf()));
+
+	// パイプラインオブジェクト作成
+	hr = DX12Renderer::GetDevice()->
+		CreateGraphicsPipelineState(
+			&gpsd, 
+			IID_PPV_ARGS(m_GaussianVPipeline.ReleaseAndGetAddressOf())
+		);
 	
 	// 横方向ブラーパイプライン
 	hr = D3DCompileFromFile(
@@ -1162,7 +1173,8 @@ void PeraPolygon::CreatePeraPipeline()
 		errBlob.ReleaseAndGetAddressOf()
 	);
 	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
-	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_GaussianHPipeline.ReleaseAndGetAddressOf()));
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, 
+		IID_PPV_ARGS(m_GaussianHPipeline.ReleaseAndGetAddressOf()));
 
 	// ブラーパイプライン
 	hr = D3DCompileFromFile(
@@ -1211,6 +1223,18 @@ void PeraPolygon::CreatePeraPipeline()
 	);
 	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
 	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_OutlinePipeline.ReleaseAndGetAddressOf()));
+
+	// モザイクパイプライン
+	hr = D3DCompileFromFile(
+		L"PeraPixelShader.hlsl",
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		"MosaicPS", "ps_5_0", 0, 0,
+		ps.ReleaseAndGetAddressOf(),
+		errBlob.ReleaseAndGetAddressOf()
+	);
+	gpsd.PS = CD3DX12_SHADER_BYTECODE(ps.Get());
+	hr = DX12Renderer::GetDevice()->CreateGraphicsPipelineState(&gpsd, IID_PPV_ARGS(m_MosaicPipeline.ReleaseAndGetAddressOf()));
 
 
 	m_NowUsePipelineState = m_NormalPipelineState;
@@ -1299,5 +1323,12 @@ void PeraPolygon::ChangePipeline()
 	{
 		m_NowUsePipelineState = m_GaussianHPipeline;
 		m_NowUsePipelineState2 = m_GaussianVPipeline;
+	}
+
+	// ガウスぼかし
+	if (Input::GetKeyTrigger('6'))
+	{
+		m_NowUsePipelineState = m_MosaicPipeline;
+		m_NowUsePipelineState2 = m_NormalPipelineState;
 	}
 }

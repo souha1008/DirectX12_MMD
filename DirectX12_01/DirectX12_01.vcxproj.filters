@@ -31,15 +31,15 @@
     <ClCompile Include="FinalResource.cpp">
       <Filter>ソースファイル\レンダー</Filter>
     </ClCompile>
+    <ClCompile Include="DepthofField.cpp">
+      <Filter>ソースファイル\レンダー</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
       <Filter>ヘッダーファイル\フレームワーク</Filter>
     </ClInclude>
     <ClInclude Include="DirectX12_01.h">
-      <Filter>ヘッダーファイル\フレームワーク</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource.h">
       <Filter>ヘッダーファイル\フレームワーク</Filter>
     </ClInclude>
     <ClInclude Include="targetver.h">
@@ -70,6 +70,12 @@
       <Filter>ヘッダーファイル\レンダー</Filter>
     </ClInclude>
     <ClInclude Include="FinalResource.h">
+      <Filter>ヘッダーファイル\レンダー</Filter>
+    </ClInclude>
+    <ClInclude Include="DepthofField.h">
+      <Filter>ヘッダーファイル\レンダー</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
       <Filter>ヘッダーファイル\レンダー</Filter>
     </ClInclude>
   </ItemGroup>
@@ -133,6 +139,18 @@
     <Filter Include="ソースファイル\フレームワーク">
       <UniqueIdentifier>{3fbc0dfe-47e6-4340-8726-bcb309f23ba8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソースファイル\シェーダー\Basic">
+      <UniqueIdentifier>{0d80544b-6dd6-4480-8804-5e1620352b20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\シェーダー\LightingShader">
+      <UniqueIdentifier>{89f75e2a-52bb-49dd-8cfb-06d2c7f57bc6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\シェーダー\ポストエフェクト">
+      <UniqueIdentifier>{f8d8c0e3-a918-4ddd-8e40-e34f20d9b9d2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソースファイル\シェーダー\ポストエフェクト\DepthofField">
+      <UniqueIdentifier>{b8cf14e5-7e33-4aad-8aad-6d7674d9767d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DirectX12_01.rc">
@@ -141,28 +159,31 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="BasicPixelShader.hlsl">
-      <Filter>ソースファイル\シェーダー</Filter>
+      <Filter>ソースファイル\シェーダー\Basic</Filter>
     </FxCompile>
     <FxCompile Include="BasicVertexShader.hlsl">
-      <Filter>ソースファイル\シェーダー</Filter>
-    </FxCompile>
-    <FxCompile Include="RimLightingPS.hlsl">
-      <Filter>ソースファイル\シェーダー</Filter>
-    </FxCompile>
-    <FxCompile Include="RimLightingVS.hlsl">
-      <Filter>ソースファイル\シェーダー</Filter>
-    </FxCompile>
-    <FxCompile Include="LightingVertexShader.hlsl">
-      <Filter>ソースファイル\シェーダー</Filter>
+      <Filter>ソースファイル\シェーダー\Basic</Filter>
     </FxCompile>
     <FxCompile Include="LightingPixelShader.hlsl">
-      <Filter>ソースファイル\シェーダー</Filter>
+      <Filter>ソースファイル\シェーダー\LightingShader</Filter>
     </FxCompile>
-    <FxCompile Include="PeraVertexShader.hlsl">
-      <Filter>ソースファイル\シェーダー</Filter>
+    <FxCompile Include="LightingVertexShader.hlsl">
+      <Filter>ソースファイル\シェーダー\LightingShader</Filter>
+    </FxCompile>
+    <FxCompile Include="PE_DepthofFieldPS.hlsl">
+      <Filter>ソースファイル\シェーダー\ポストエフェクト\DepthofField</Filter>
+    </FxCompile>
+    <FxCompile Include="PE_DepthofFieldVS.hlsl">
+      <Filter>ソースファイル\シェーダー\ポストエフェクト\DepthofField</Filter>
     </FxCompile>
     <FxCompile Include="PeraPixelShader.hlsl">
-      <Filter>ソースファイル\シェーダー</Filter>
+      <Filter>ソースファイル\シェーダー\ポストエフェクト</Filter>
+    </FxCompile>
+    <FxCompile Include="PeraVertexShader.hlsl">
+      <Filter>ソースファイル\シェーダー\ポストエフェクト</Filter>
+    </FxCompile>
+    <FxCompile Include="DepthColorPS.hlsl">
+      <Filter>ソースファイル\シェーダー\ポストエフェクト\DepthofField</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -170,6 +191,9 @@
       <Filter>ヘッダーファイル\シェーダー</Filter>
     </None>
     <None Include="PeraHeader.hlsli">
+      <Filter>ヘッダーファイル\シェーダー</Filter>
+    </None>
+    <None Include="DepthofField.hlsli">
       <Filter>ヘッダーファイル\シェーダー</Filter>
     </None>
   </ItemGroup>

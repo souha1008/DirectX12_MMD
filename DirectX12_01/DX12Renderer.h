@@ -79,6 +79,16 @@ public:
         return m_DSVDescHeap.Get();
     }
 
+    static ID3D12DescriptorHeap* GetDepthSRVDescHeap()
+    {
+        return m_DepthSRVDescHeap.Get();
+    }
+
+    static ID3D12Resource* GetDepthResource()
+    {
+        return m_BackBufferDepthResource.Get();
+    }
+
 private:
     typedef struct
     {
@@ -91,8 +101,9 @@ private:
     static ComPtr<ID3D12Device> m_Device;
     static ComPtr<IDXGIFactory6> m_DXGIFactry;
     static ComPtr<IDXGISwapChain4> m_SwapChain4;
-    static ComPtr<ID3D12Resource> m_DepthBuffer;
-    static ComPtr<ID3D12DescriptorHeap> m_DSVDescHeap;
+    static ComPtr<ID3D12Resource> m_BackBufferDepthResource;        // 深度値書き込みリソースバッファー
+    static ComPtr<ID3D12DescriptorHeap> m_DSVDescHeap;  // 深度値
+    static ComPtr<ID3D12DescriptorHeap> m_DepthSRVDescHeap;
     static ComPtr<ID3D12CommandAllocator> m_CmdAllocator;
     static ComPtr<ID3D12GraphicsCommandList> m_GCmdList;
     static ComPtr<ID3D12CommandQueue> m_CmdQueue;
@@ -161,6 +172,7 @@ private:
     ComPtr<ID3D12PipelineState> m_OutlinePipeline;
     ComPtr<ID3D12PipelineState> m_GaussianHPipeline;
     ComPtr<ID3D12PipelineState> m_GaussianVPipeline;
+    ComPtr<ID3D12PipelineState> m_MosaicPipeline;
 
     // 現在使用中のパイプライン
     // このパイプラインはかけるエフェクトの量だけ作成する

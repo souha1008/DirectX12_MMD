@@ -3,11 +3,7 @@
 /// 
 /// ‚·‚×‚Ä‚Ìˆ—‚ğ‚±‚±‚ÅÀs
 /// </summary>
-enum NowScene
-{
-    Title = 0,
-    Main,
-};
+
 
 class MainManager
 {
@@ -17,6 +13,4 @@ public:
     static void Update();   // XV
     static void Draw();     // •`‰æ
 
-private:
-    static NowScene m_nowscene;
 };

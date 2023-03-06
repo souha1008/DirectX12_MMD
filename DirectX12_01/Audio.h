@@ -24,7 +24,7 @@ public:
 	void Draw() {};
 
 	void Load(const char* FileName);
-	void Play(bool Loop = false);
+	void Play(bool Loop = false, float volume = 1.0f);
 	void Pause() { m_SourceVoice->Stop(); };
 
 };

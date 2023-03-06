@@ -239,7 +239,7 @@ void FinalResource::PreFinalDraw()
 	);
 	float clsClr[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
 	DX12Renderer::GetGraphicsCommandList()->ClearRenderTargetView(rtvHeapHandle, clsClr, 0, nullptr);
-	DX12Renderer::GetGraphicsCommandList()->ClearDepthStencilView(dsvHeapHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	
 	
 }
 

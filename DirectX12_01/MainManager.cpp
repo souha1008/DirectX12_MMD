@@ -4,6 +4,7 @@
 // レンダーモジュール
 #include "DX12Renderer.h"
 #include "FinalResource.h"
+#include "DepthofField.h"
 
 // サウンドモジュール
 #include "Audio.h"
@@ -20,6 +21,8 @@ Obj_HatsuneMiku* g_HatsuneMiku;
 Audio* g_bgm;
 PeraPolygon* g_Pera;
 FinalResource* g_FinalResource;
+DepthColor* g_Depth;
+
 
 void MainManager::Init()
 {
@@ -28,12 +31,10 @@ void MainManager::Init()
     // レンダー初期化
     DX12Renderer::Init();
 
-
     g_HatsuneMiku = new Obj_HatsuneMiku();
-    g_bgm = new Audio();
-    g_Pera = new PeraPolygon();
-
     g_HatsuneMiku->Init();
+
+    g_Pera = new PeraPolygon();
     g_Pera->CreateBokehParamResource();
     g_Pera->CreatePeraResorce();
     g_Pera->CreatePeraVertex();
@@ -42,7 +43,12 @@ void MainManager::Init()
     g_FinalResource = new FinalResource();
     g_FinalResource->Init();
 
+    g_Depth = new DepthColor();
+    g_Depth->Init();
+
+    g_bgm = new Audio();
     g_bgm->Load("Assets/Audio/アンノウン・マザーグース.wav");
+    g_bgm->Play(false, 0.03f);
 
     // １フレームだけ進ませる
     g_HatsuneMiku->Update();
@@ -64,7 +70,7 @@ void MainManager::Uninit()
 void MainManager::Update()
 {
 #ifdef _DEBUG
-    static bool isplay;
+    static bool isplay = true;
     
     if (Input::GetKeyTrigger(VK_SPACE))
     {
@@ -88,39 +94,48 @@ void MainManager::Draw()
 {
 
     DX12Renderer::Draw3D();
+
+    // 深度値を出したいオブジェクト
+    g_Depth->PreDepthDraw();
+
+        g_HatsuneMiku->Draw();
+
+    g_Depth->PostDepthDraw();
+
     // ペラポリゴン描画準備
     g_Pera->PrePeraDraw1();
 
-    DX12Renderer::LIGHT light;
-    light.Enable = true;
-    light.Direction = XMVECTOR{ 1.0f, -1.0f, 1.0f, 0.0f };
-    XMVector4Normalize(light.Direction);
-    light.Ambient = XMFLOAT4{ 0.1f, 0.1f, 0.1f, 1.0f };
-    light.Diffuse = XMFLOAT4{ 1.0f, -1.0f, 1.0f, 1.0f };
-    XMFLOAT3 eye = XMFLOAT3{ -10.0f, 10.0f, -10.0f };
-    XMFLOAT3 at = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
-    XMFLOAT3 up = XMFLOAT3{ 0.0f, 1.0f, 0.0f };
-    XMStoreFloat4x4(&light.ViewMatrix, XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&at), XMLoadFloat3(&up)));
-    XMStoreFloat4x4(&light.ProjMatrix, XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
-        static_cast<float>(SCREEN_WIDTH) / static_cast<float>(SCREEN_HEIGHT),//アス比
-        0.1f,//近い方
-        1000.0f//遠い方
-    ));
+        DX12Renderer::LIGHT light;
+        light.Enable = true;
+        light.Direction = XMVECTOR{ 1.0f, -1.0f, 1.0f, 0.0f };
+        XMVector4Normalize(light.Direction);
+        light.Ambient = XMFLOAT4{ 0.1f, 0.1f, 0.1f, 1.0f };
+        light.Diffuse = XMFLOAT4{ 1.0f, -1.0f, 1.0f, 1.0f };
+        XMFLOAT3 eye = XMFLOAT3{ -10.0f, 10.0f, -10.0f };
+        XMFLOAT3 at = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
+        XMFLOAT3 up = XMFLOAT3{ 0.0f, 1.0f, 0.0f };
+        XMStoreFloat4x4(&light.ViewMatrix, XMMatrixLookAtLH(XMLoadFloat3(&eye), XMLoadFloat3(&at), XMLoadFloat3(&up)));
+        XMStoreFloat4x4(&light.ProjMatrix, XMMatrixPerspectiveFovLH(XM_PIDIV4,//画角は90°
+            static_cast<float>(SCREEN_WIDTH) / static_cast<float>(SCREEN_HEIGHT),//アス比
+            0.1f,//近い方
+            1000.0f//遠い方
+        ));
 
-    DX12Renderer::SetLight(light);
+        DX12Renderer::SetLight(light);
 
-    // 3D描画
-    g_HatsuneMiku->Draw();
+        // 3D描画
+        g_HatsuneMiku->Draw();
+
     g_Pera->PostPeraDraw1();
 
     // フィルタ二枚目
     g_Pera->PrePeraDraw2();
-    g_Pera->PeraDraw1();
+        g_Pera->PeraDraw1();
     g_Pera->PostPeraDraw2();
 
     // 最終的に画面に映すもの
     g_FinalResource->PreFinalDraw();
-    g_Pera->PeraDraw2();
+        g_Pera->PeraDraw2();
     g_FinalResource->PostFinalDraw();
 
     // シャドウバッファの作成
@@ -129,10 +144,11 @@ void MainManager::Draw()
     //DX12Renderer::SetView(&light.ViewMatrix);
     //DX12Renderer::SetProj(&light.ProjMatrix);
 
-    // ここにオブジェクトの描画
+    // バックバッファで描画
     DX12Renderer::Begin();
 
-    g_FinalResource->FinalDraw();
+        g_FinalResource->FinalDraw();
+        //g_Depth->DepthDraw();
 
     DX12Renderer::End();
 
